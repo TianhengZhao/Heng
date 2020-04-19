@@ -6,6 +6,11 @@ import os
 
 basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__))) #返回.py文件的绝对路径
 
+class Operations:
+    CONFIRM = 'confirm'
+    RESET_PASSWORD = 'reset-password'
+    CHANGE_EMAIL = 'change-email'
+
 class BaseConfig:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'hard to guess string'   #待修改
     MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.qq.com')
