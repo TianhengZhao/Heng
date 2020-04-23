@@ -2,7 +2,10 @@
   author: Tianheng Zhao
 """
 from flask_login import UserMixin
+import jwt
 from werkzeug.security import  check_password_hash
+from flask import current_app
+from datetime import datetime, timedelta
 from .extensions import db
 class user(db.Model,UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -13,3 +16,4 @@ class user(db.Model,UserMixin):
 
     def validate_password(self, password):
         return check_password_hash(self.password_hash, password)  #返回值为True表示密码正确
+

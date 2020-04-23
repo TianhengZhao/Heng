@@ -1,12 +1,11 @@
-from flask_login import login_user
+from flask_login import login_user,logout_user, login_required, current_user
 from flask import Flask,request,Blueprint
 from flask_cors import CORS
-from ..model import user
 from ..extensions import db
-from flask_sqlalchemy import SQLAlchemy
-from ..config import Config
+from ..utils import generate_token
+from ..config import Operations
 from werkzeug.security import generate_password_hash
-
+from ..model import user  #model引用必须在db和login_manager之后，以免引起循环引用
 auth_bp = Blueprint('auth', __name__)
 
 cors = CORS(auth_bp, resources={"/auth/loginData/*": {"origins": "*"}})
@@ -16,7 +15,8 @@ def loginData():
     que = user.query.filter_by(username=data['username']).first()
     if que is not None and que.validate_password(data['password']):   #验证密码
         login_user(que, remember=data['rem'])
-        return 'Success'
+        token = generate_token(que,600)
+        return token
     else:
         return 'Wrong'
 

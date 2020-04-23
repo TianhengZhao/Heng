@@ -18,7 +18,7 @@ moment = Moment()
 csrf = CSRFProtect()
 
 @login_manager.user_loader
-def load_user(user_id):       #建立 user_loader 的回调函数，该函数通过 user_id 来获取 user 对象  干嘛用？？？？？？
-    from blog.model import user
+def load_user(user_id):       #建立 user_loader 的回调函数，该函数通过 user_id 来获取 user 对象
+    from blog.model import user    #避免循环引用
     User = user.query.get(int(user_id))
-    return User
+    return User  #调用current_user时调用此函数返回当前用户对象

@@ -1,4 +1,4 @@
 import os
-from blog import create_app,db
+from blog import create_app
 
 app=create_app(None)
