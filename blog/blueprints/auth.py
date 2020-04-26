@@ -1,9 +1,8 @@
-from flask_login import login_user,logout_user, login_required, current_user
-from flask import Flask,request,Blueprint
+from flask_login import login_user
+from flask import request,Blueprint
 from flask_cors import CORS
 from ..extensions import db
 from ..utils import generate_token
-from ..config import Operations
 from werkzeug.security import generate_password_hash
 from ..model import user  #model引用必须在db和login_manager之后，以免引起循环引用
 auth_bp = Blueprint('auth', __name__)

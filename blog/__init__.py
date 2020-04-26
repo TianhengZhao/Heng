@@ -4,7 +4,7 @@ from .config import Config
 from .extensions import bootstrap, db, login_manager, mail
 from .model import user
 from .blueprints.auth import auth_bp
-
+from .extensions import avatars
 
 def create_app(config_name=None):
     if config_name is None:
@@ -21,6 +21,7 @@ def register_extensions(app):
     db.init_app(app)
     login_manager.init_app(app)
     mail.init_app(app)
+    avatars.init_app(app)
 
 
 def register_blueprints(app):

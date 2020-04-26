@@ -9,7 +9,8 @@ from flask_mail import Mail
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
-
+from flask_avatars import Avatars
+avatars=Avatars()
 bootstrap = Bootstrap()
 db = SQLAlchemy()
 login_manager = LoginManager()

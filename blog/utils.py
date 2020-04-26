@@ -1,12 +1,7 @@
-import PIL
-from PIL import Image
-from flask import current_app, request, url_for, redirect, flash
+from flask import current_app
 from itsdangerous import BadSignature, SignatureExpired
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer   #从itsdangerous（提供签名辅助类）导入JWS令牌；
 from .extensions import db
-from .model import user
-from .config import Operations
-from flask import jsonify, g
 
 
 def generate_token(user,expire_in=None, **kwargs):   #产生令牌
