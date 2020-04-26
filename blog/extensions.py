@@ -2,7 +2,6 @@
     author: Tianheng Zhao
     存放引入的包，并且声明
 """
-from flask_login import LoginManager
 from flask_bootstrap import Bootstrap
 from flask_login import LoginManager, AnonymousUserMixin
 from flask_mail import Mail

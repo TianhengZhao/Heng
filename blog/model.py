@@ -23,16 +23,16 @@ class user(db.Model,UserMixin):
         digest = md5(self.email.lower().encode('utf-8')).hexdigest()  # 以utf-8格式编码邮箱，然后得到MD5哈希值，以16进制表示
         return 'https://www.gravatar.com/avatar/{}?d=identicon&s={}'.format(digest, size)
 
-    def to_dict(self, include_email=False):
+    def to_dict(self):
         data = {
             'id': self.id,
             'username': self.username,
             'email':self.email,
             'about_me': self.about_me,
-            'reg_since': self.member_since.isoformat() + 'Z',
+            'reg_since': self.reg_since.isoformat() + 'Z',
             'sex':self.sex,
             '_links': {
-                'self': url_for('api.get_user', id=self.id),
+                'self': url_for('user.get_user', id=self.id),
                 'avatar': self.avatar(128)
             }
         }

@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash
 from ..model import user  #model引用必须在db和login_manager之后，以免引起循环引用
 auth_bp = Blueprint('auth', __name__)
 
-cors = CORS(auth_bp, resources={"/auth/loginData/*": {"origins": "*"}})
+#cors = CORS(auth_bp, resources={"/auth/loginData/*": {"origins": "*"}})
 @auth_bp.route('/loginData',methods=['GET', 'POST'])                   #methods要加上，默认只接受GET方法
 def loginData():
     data = request.get_json()
@@ -20,7 +20,7 @@ def loginData():
         return 'Wrong'
 
 
-cors = CORS(auth_bp, resources={"/auth/signinData/*": {"origins": "*"}})    #要加上/auth ？？？？？
+#cors = CORS(auth_bp, resources={"/auth/signinData/*": {"origins": "*"}})    #要加上/auth ？？？？？
 @auth_bp.route('/signinData',methods=['GET', 'POST'])                   #methods要加上，默认只接受GET方法
 def signinData():
     data = request.get_json()
