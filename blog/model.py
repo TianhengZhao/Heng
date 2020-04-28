@@ -36,4 +36,5 @@ class user(db.Model,UserMixin):
                 'avatar': self.avatar(128)
             }
         }
+        return data
 
