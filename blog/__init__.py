@@ -1,12 +1,12 @@
 import os
 from flask import Flask
 from .config import Config
-from .extensions import bootstrap, db, login_manager, mail
+from .extensions import bootstrap, db, login_manager, mail,avatars,migrate
 from flask_cors import CORS
 from .model import user
 from .blueprints.auth import auth_bp
 from .blueprints.user import user_bp
-from .extensions import avatars
+
 
 def create_app(config_name=None):
     if config_name is None:
@@ -25,6 +25,8 @@ def register_extensions(app):
     login_manager.init_app(app)
     mail.init_app(app)
     avatars.init_app(app)
+    migrate.init_app(app,db)
+
 
 
 def register_blueprints(app):

@@ -7,6 +7,8 @@ from werkzeug.security import  check_password_hash
 from flask import url_for
 from datetime import datetime
 from .extensions import db
+
+
 class user(db.Model,UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(20), unique=True, index=True)  # 建立索引
@@ -38,3 +40,15 @@ class user(db.Model,UserMixin):
         }
         return data
 
+
+class Post(db.Model):
+    __tablename__ = 'posts'
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255))
+    summary = db.Column(db.Text)
+    body = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    views = db.Column(db.Integer, default=0)
+
+    def __repr__(self):
+        return '<Post {}>'.format(self.title)
