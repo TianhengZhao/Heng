@@ -12,7 +12,7 @@ def create_app(config_name=None):
     if config_name is None:
         config_name = os.getenv('FLASK_CONFIG', 'development')
     app = Flask(__name__)
-    CORS(app)    #解决跨域问题
+    CORS(app)                                               # 解决跨域问题
     app.config.from_object(Config[config_name])
     register_extensions(app)
     register_blueprints(app)
@@ -26,7 +26,6 @@ def register_extensions(app):
     mail.init_app(app)
     avatars.init_app(app)
     migrate.init_app(app,db)
-
 
 
 def register_blueprints(app):
