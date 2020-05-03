@@ -41,7 +41,7 @@ class user(db.Model,UserMixin):
         return data
 
 
-class Post(db.Model):
+class post(db.Model):
     __tablename__ = 'posts'
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255))
@@ -49,6 +49,28 @@ class Post(db.Model):
     body = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     views = db.Column(db.Integer, default=0)
+    author_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
     def __repr__(self):
         return '<Post {}>'.format(self.title)
+
+    def to_dict(self):
+        data = {
+            'id': self.id,
+            'title': self.title,
+            'summary': self.summary,
+            'body': self.body,
+            'timestamp': self.timestamp,
+            'views': self.views,
+            'author': self.author.to_dict(),
+            '_links': {
+                'self': url_for('post.get_post', id=self.id),
+                'author_url': url_for('user.get_user', id=self.author_id)
+            }
+        }
+        return data
+
+    def from_dict(self, data):
+        for field in ['title', 'summary', 'body']:
+            if field in data:
+                setattr(self, field, data[field])   # setattr(object, name, value)用于设置属性
