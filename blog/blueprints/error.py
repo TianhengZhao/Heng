@@ -1,5 +1,6 @@
 from flask import jsonify
 from werkzeug.http import HTTP_STATUS_CODES
+"""
 from .post import post_bp
 from ..model import db
 
@@ -27,3 +28,4 @@ def not_found_error():
 def internal_error(error):
     db.session.rollback()                    # 为什么要回卷？？
     return error_response(500)
+"""

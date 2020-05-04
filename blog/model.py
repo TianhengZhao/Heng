@@ -7,6 +7,10 @@ from werkzeug.security import  check_password_hash
 from flask import url_for
 from datetime import datetime
 from .extensions import db
+from flask import current_app
+from itsdangerous import BadSignature, SignatureExpired
+from itsdangerous import TimedJSONWebSignatureSerializer as Serializer   # 从itsdangerous（提供签名辅助类）导入JWS令牌；
+
 
 
 class user(db.Model,UserMixin):
@@ -14,9 +18,10 @@ class user(db.Model,UserMixin):
     username = db.Column(db.String(20), unique=True, index=True)  # 建立索引
     email = db.Column(db.String(254), unique=True, index=True)    # 建立索引
     password_hash = db.Column(db.String(128))
-    about_me=db.Column(db.String(256))
+    about_me = db.Column(db.String(256))
     reg_since = db.Column(db.DateTime(), default=datetime.utcnow)
-    sex=db.Column(db.String(5))
+    sex = db.Column(db.String(5))
+    posts = db.relationship('post', backref='author', lazy='dynamic', cascade='all,delete-orphan')    # user和post建立双向关系
 
     def validate_password(self, password):
         return check_password_hash(self.password_hash, password)  # 返回值为True表示密码正确
@@ -40,6 +45,22 @@ class user(db.Model,UserMixin):
         }
         return data
 
+    def generate_token(self, expire_in=None, **kwargs):  # 产生令牌   这个有效时间没大搞明白？？？
+        s = Serializer(current_app.config['SECRET_KEY'], expire_in)  # 序列化对象
+        data = {'id': self.id, 'name': self.username}
+        data.update(**kwargs)
+        return s.dumps(data)
+
+    @staticmethod                                           # 静态方法用来进行验证
+    def validate_token(token):
+        s = Serializer(current_app.config['SECRET_KEY'])  # 和创建令牌一样的密钥建立序列化对象
+        try:
+            data = s.loads(token)  # 返回从playload中取出的数据
+        except (SignatureExpired, BadSignature):  # 签名过期或签名不匹配
+            return False
+        db.session.commit()                     # 为什么要commit？？？
+        return True
+
 
 class post(db.Model):
     __tablename__ = 'posts'
@@ -49,7 +70,7 @@ class post(db.Model):
     body = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     views = db.Column(db.Integer, default=0)
-    author_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    author_id = db.Column(db.Integer, db.ForeignKey('user.id'))                       # 将author_id设为外键
 
     def __repr__(self):
         return '<Post {}>'.format(self.title)
