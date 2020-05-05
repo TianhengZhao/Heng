@@ -12,8 +12,28 @@ from itsdangerous import BadSignature, SignatureExpired
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer   # 从itsdangerous（提供签名辅助类）导入JWS令牌；
 
 
+class paginatededAPI(object):
+    @staticmethod
+    def pagnitede_dict(query, page, per_page, endpoint, **kwargs):
+        info = query.paginate(page, per_page)              # paginate实现分页功能
+        data = {
+            'items': [item.to_dict() for item in info.items],    # 页中每一项的内容
+            '_mata': {
+                'page': page,
+                'per_page': per_page,
+                'total_pages': info.pages,     # 总页数
+                'total_items': info.total      # 返回的记录总数
+            },
+            '_links': {
+                'self': url_for(endpoint, page=page, per_page=per_page, **kwargs),
+                'next': url_for(endpoint, page=page + 1, per_page=per_page, **kwargs) if info.has_next else None,
+                'prev': url_for(endpoint, page=page - 1, per_page=per_page, **kwargs) if info.has_prev else None
+            }
+        }
+        return data
 
-class user(db.Model,UserMixin):
+
+class user(paginatededAPI, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(20), unique=True, index=True)  # 建立索引
     email = db.Column(db.String(254), unique=True, index=True)    # 建立索引
@@ -57,12 +77,12 @@ class user(db.Model,UserMixin):
         try:
             data = s.loads(token)  # 返回从playload中取出的数据
         except (SignatureExpired, BadSignature):  # 签名过期或签名不匹配
-            return False
+            return None
         db.session.commit()                     # 为什么要commit？？？
-        return True
+        return user.query.get(data['id'])
 
 
-class post(db.Model):
+class post(paginatededAPI, db.Model):
     __tablename__ = 'posts'
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255))

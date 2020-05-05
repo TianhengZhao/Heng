@@ -1,10 +1,12 @@
 from flask_login import login_user
-from flask import request,Blueprint
-from flask_cors import CORS
+from flask import request,Blueprint,g
+from flask_httpauth import HTTPBasicAuth, HTTPTokenAuth
 from ..extensions import db
 from werkzeug.security import generate_password_hash
 from ..model import user  # model引用必须在db和login_manager之后，以免引起循环引用
 auth_bp = Blueprint('auth', __name__)
+basic_auth = HTTPBasicAuth()
+token_auth = HTTPTokenAuth()
 
 
 @auth_bp.route('/loginData',methods=['GET', 'POST'])                   # methods要加上，默认只接受GET方法
@@ -35,14 +37,17 @@ def signinData():
             return 'Success'       # 必须有返回值
 
 
+@token_auth.verify_token
+def varify_token(token):
+    g.current_user = user.validate_token(token) if token else None
+    return g.current_user is not None
 
 
-
-def validate_email(data):               #检查数据库中是否有相同邮箱
+def validate_email(data):               # 检查数据库中是否有相同邮箱
    if user.query.filter_by(email=data).first():
        return False
 
 
-def validate_name(data):               #检查数据库中是否有相同用户名
+def validate_name(data):               # 检查数据库中是否有相同用户名
    if user.query.filter_by(username=data).first():
        return False
