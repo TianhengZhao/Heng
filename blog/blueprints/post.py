@@ -18,11 +18,12 @@ def add_post():                       # 添加新文章
     posts.author = g.current_user
     db.session.add(posts)
     db.session.commit()
-    return 'Sucess'
+    return 'Success'
 
 
 @post_bp.route('/getPosts', methods=['GET'])
 def get_posts():
-    data = request.get_json()
-    pagi = post.pagnitede_dict(post.query.order_by(post.timestamp.desc()), data['page'], data['per_page'], 'getPosts.get_posts')
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 3, type=int)
+    pagi = post.pagnitede_dict(post.query.order_by(post.timestamp.desc()), page, per_page, 'post.get_posts')
     return jsonify(pagi)

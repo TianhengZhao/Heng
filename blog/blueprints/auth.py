@@ -1,5 +1,5 @@
 from flask_login import login_user
-from flask import request,Blueprint,g
+from flask import request, Blueprint, g, jsonify
 from flask_httpauth import HTTPBasicAuth, HTTPTokenAuth
 from ..extensions import db
 from werkzeug.security import generate_password_hash
@@ -15,7 +15,7 @@ def loginData():
     que = user.query.filter_by(username=data['username']).first()
     if que is not None and que.validate_password(data['password']):   # 验证密码
         login_user(que, remember=data['rem'])
-        token = que.generate_token(600)
+        token = que.generate_token(6000)
         return token
     else:
         return 'Wrong'

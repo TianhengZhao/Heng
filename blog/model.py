@@ -3,7 +3,7 @@
 """
 from flask_login import UserMixin
 from hashlib import md5
-from werkzeug.security import  check_password_hash
+from werkzeug.security import check_password_hash
 from flask import url_for
 from datetime import datetime
 from .extensions import db
@@ -18,7 +18,7 @@ class paginatededAPI(object):
         info = query.paginate(page, per_page)              # paginate实现分页功能
         data = {
             'items': [item.to_dict() for item in info.items],    # 页中每一项的内容
-            '_mata': {
+            '_meta': {
                 'page': page,
                 'per_page': per_page,
                 'total_pages': info.pages,     # 总页数
@@ -33,7 +33,7 @@ class paginatededAPI(object):
         return data
 
 
-class user(paginatededAPI, db.Model):
+class user(paginatededAPI, db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(20), unique=True, index=True)  # 建立索引
     email = db.Column(db.String(254), unique=True, index=True)    # 建立索引
@@ -105,7 +105,7 @@ class post(paginatededAPI, db.Model):
             'views': self.views,
             'author': self.author.to_dict(),
             '_links': {
-                'self': url_for('post.get_post', id=self.id),
+                'self': url_for('post.get_posts', id=self.id),
                 'author_url': url_for('user.get_user', id=self.author_id)
             }
         }
