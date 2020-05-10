@@ -21,9 +21,9 @@ def create_app(config_name=None):
 
 
 def register_extensions(app):
+    login_manager.init_app(app)
     bootstrap.init_app(app)
     db.init_app(app)
-    login_manager.init_app(app)
     mail.init_app(app)
     avatars.init_app(app)
     migrate.init_app(app,db)

@@ -41,7 +41,7 @@ class user(paginatededAPI, db.Model, UserMixin):
     about_me = db.Column(db.String(256))
     reg_since = db.Column(db.DateTime(), default=datetime.utcnow)
     sex = db.Column(db.String(5))
-    posts = db.relationship('post', backref='author', lazy='dynamic', cascade='all,delete-orphan')    # user和post建立双向关系
+    posts = db.relationship('article', backref='author', lazy='dynamic', cascade='all,delete-orphan')    # user和post建立双向关系
 
     def validate_password(self, password):
         return check_password_hash(self.password_hash, password)  # 返回值为True表示密码正确
@@ -82,7 +82,7 @@ class user(paginatededAPI, db.Model, UserMixin):
         return user.query.get(data['id'])
 
 
-class post(paginatededAPI, db.Model):
+class article(paginatededAPI, db.Model):
     __tablename__ = 'posts'
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255))
