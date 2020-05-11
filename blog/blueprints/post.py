@@ -29,11 +29,21 @@ def get_posts():
     return jsonify(pagi)
 
 
-@post_bp.route('/getPost/<int:id>', methods=['GET'])
+@post_bp.route('/getPost/<id>', methods=['GET'])
 def get_post(id):
-    art = article.query.get_or_404(id).to_dict()
-    return art
+    art = article.query.get_or_404(id)
+    art.views += 1
+    db.session.add(art)
+    db.session.commit()
+    return jsonify(art.to_dict())
 
 
+@post_bp.route('/getPost/<id>', methods=['DELETE'])
+@token_auth.login_required
+def delete_post(id):
+    art = article.query.get_or_404(id)
+    db.session.delete(art)
+    db.session.commit()
+    return 'Success'
 
 
