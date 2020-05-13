@@ -33,6 +33,15 @@ class paginatededAPI(object):
         return data
 
 
+# 自引用多对多关系
+followers = db.Table(                                 # 关联表
+    'followers',                                      # 关联表的名称
+    db.Column('follower_id', db.Integer, db.ForeignKey('user.id')),
+    db.Column('followed_id', db.Integer, db.ForeignKey('user.id')),
+    db.Column('timestamp', db.DateTime, default=datetime.utcnow)
+)
+
+
 class user(paginatededAPI, db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(20), unique=True, index=True)  # 建立索引
@@ -41,7 +50,26 @@ class user(paginatededAPI, db.Model, UserMixin):
     about_me = db.Column(db.String(256))
     reg_since = db.Column(db.DateTime(), default=datetime.utcnow)
     sex = db.Column(db.String(5))
-    posts = db.relationship('article', backref='author', lazy='dynamic', cascade='all,delete-orphan')    # user和post建立双向关系
+    posts = db.relationship('article', backref='author', lazy='dynamic', cascade='all,delete-orphan')     # user和post建立双向关系
+    followeds=db.relationship(
+        'user',                            # 关联表名，自引用
+        secondary=followers,             # 指明用于该关系的关联表
+        primaryjoin=(followers.c.follower_id == id),
+        secondaryjoin=(followers.c.followed_id == id),
+        backref=db.backref('followers', lazy='dynamic'),
+        lazy='dynamic'
+    )
+
+    def is_following(self, obj):
+        return self.followeds.filter(followers.c.followed_id == obj.id).count() > 0     # 判断当前user是否关注obj
+
+    def follow(self, obj):
+        if not self.is_following(self, obj):                # 如果当前user未关注过该obj
+            self.followeds.append(obj)                      # 关注该obj
+
+    def unfollow(self, obj):
+        if self.is_following(self, obj):                    # 如果当前user关注了该obj
+            self.followeds.remove(obj)                      # 取消关注该obj
 
     def validate_password(self, password):
         return check_password_hash(self.password_hash, password)  # 返回值为True表示密码正确
