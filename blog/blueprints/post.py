@@ -1,15 +1,17 @@
 from .auth import token_auth
 from flask import Blueprint, request, g, jsonify
 from ..extensions import db
-#from .error import bad_request
+# from .error import bad_request
+
 from ..model import article
 
 post_bp = Blueprint('post', __name__)
 
 
+# 添加新文章
 @post_bp.route('/add', methods=['POST'])
 @token_auth.login_required
-def add_post():                       # 添加新文章
+def add_post():
     data = request.get_json()
     '''if not data:
         return bad_request('please send JSON data')'''
@@ -21,6 +23,7 @@ def add_post():                       # 添加新文章
     return 'Success'
 
 
+# 获得所有发表文章
 @post_bp.route('/getPosts', methods=['GET'])
 def get_posts():
     page = request.args.get('page', 1, type=int)
@@ -29,6 +32,7 @@ def get_posts():
     return jsonify(pagi)
 
 
+# 根据文章id获得对应文章
 @post_bp.route('/getPost/<id>', methods=['GET'])
 def get_post(id):
     art = article.query.get_or_404(id)
@@ -38,6 +42,7 @@ def get_post(id):
     return jsonify(art.to_dict())
 
 
+# 删除文章id对应的文章
 @post_bp.route('/getPost/<id>', methods=['DELETE'])
 @token_auth.login_required
 def delete_post(id):
@@ -47,11 +52,12 @@ def delete_post(id):
     return 'Success'
 
 
-@post_bp.route('/getOnesPost/<id>', methods=['GET'])
+# 根据author_id获得该作者所有文章
+@post_bp.route('/getOnesPosts/<id>', methods=['GET'])
 def get_ones_posts(id):
     page = request.args.get('page', 1, type=int)
     per_page = 10
-    pagi = article.pagnitede_dict(article.query.filter_by(id = id).order_by(article.timestamp.desc()), page, per_page, 'post.get_ones_posts')
+    pagi = article.pagnitede_dict(article.query.filter_by(author_id = id).order_by(article.timestamp.desc()), page, per_page, 'post.get_ones_posts', id=id)
     return jsonify(pagi)
 
 
