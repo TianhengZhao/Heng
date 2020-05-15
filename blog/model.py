@@ -51,7 +51,7 @@ class user(paginatededAPI, db.Model, UserMixin):
     reg_since = db.Column(db.DateTime(), default=datetime.utcnow)
     sex = db.Column(db.String(5))
     posts = db.relationship('article', backref='author', lazy='dynamic', cascade='all,delete-orphan')     # user和post建立双向关系
-    followeds=db.relationship(
+    followeds = db.relationship(
         'user',                            # 关联表名，自引用
         secondary=followers,             # 指明用于该关系的关联表
         primaryjoin=(followers.c.follower_id == id),
@@ -64,12 +64,18 @@ class user(paginatededAPI, db.Model, UserMixin):
         return self.followeds.filter(followers.c.followed_id == obj.id).count() > 0     # 判断当前user是否关注obj
 
     def follow(self, obj):
-        if not self.is_following(self, obj):                # 如果当前user未关注过该obj
-            self.followeds.append(obj)                      # 关注该obj
+        if not self.is_following(obj):                # 如果当前user未关注过该obj
+            self.followeds.append(obj)                      # 在关联表中添加self和该obj
 
     def unfollow(self, obj):
-        if self.is_following(self, obj):                    # 如果当前user关注了该obj
-            self.followeds.remove(obj)                      # 取消关注该obj
+        if self.is_following(obj):                    # 如果当前user关注了该obj
+            self.followeds.remove(obj)                      # 在关联表中删除self对应的obj
+
+    def followed_posts(self, obj):
+        followed = article.query.join(
+            followers, (followers.c.followed_id == article.author_id)    # 将关联表和文章表进行关联
+        ).filter(followers.c.follower_id == self.id)                     # 找出当前用户所关注用户的文章
+        return followed.order_by(article.timestamp.desc())
 
     def validate_password(self, password):
         return check_password_hash(self.password_hash, password)  # 返回值为True表示密码正确

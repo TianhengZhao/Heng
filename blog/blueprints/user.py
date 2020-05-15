@@ -1,7 +1,7 @@
 from .auth import token_auth
 from flask import request, Blueprint, jsonify, g
 from ..extensions import db
-from ..model import user  # model引用必须在db和login_manager之后，以免引起循环引用
+from ..model import user, article  # model引用必须在db和login_manager之后，以免引起循环引用
 user_bp = Blueprint('user', __name__)
 
 
@@ -35,9 +35,32 @@ def follow(id):
           return 'Wrong'
      if g.current_user.is_following(que):
           return 'Wrong'
-     que.follow(que)
+     g.current_user.follow(que)
      db.session.commit()
      return 'Success'
+
+
+@user_bp.route('/unfollow/<id>', methods=['GET'])
+@token_auth.login_required
+def unfollow(id):
+     que = user.query.get_or_404(id)
+     if g.current_user == que:
+          return 'Wrong'
+     if not g.current_user.is_following(que):
+          return 'Wrong'
+     g.current_user.unfollow(que)
+     db.session.commit()
+     return 'Success'
+
+
+# 获得用户id的所有粉丝
+@user_bp.route('/getOnesFans/<id>', methods=['GET'])
+def get_ones_fans(id):
+    que = user.query.get_or_404(id)                 # 得到id对应的用户que
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    pagi = user.pagnitede_dict(que.followers, page, per_page, 'user.get_ones_fans', id=id)  # que.followers得到que的所有粉丝，分页
+    return jsonify(pagi)
 
 
 
