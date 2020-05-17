@@ -5,7 +5,8 @@ from ..model import user, article  # model引用必须在db和login_manager之�
 user_bp = Blueprint('user', __name__)
 
 
-@user_bp.route('/<id>', methods=['GET'])  # 返回id对应的用户信息
+# 返回id对应的用户信息
+@user_bp.route('/<id>', methods=['GET'])
 @token_auth.login_required
 def get_user(id):
      que = user.query.get_or_404(id)
@@ -16,7 +17,8 @@ def get_user(id):
      return jsonify(data)
 
 
-@user_bp.route('/<id>', methods=['PUT'])  # 修改id对应的用户信息
+# 修改id对应的用户信息
+@user_bp.route('/<id>', methods=['PUT'])
 def update(id):
      data = request.get_json()
      que = user.query.get_or_404(id)
@@ -27,6 +29,7 @@ def update(id):
      return 'Success'
 
 
+# 关注用户
 @user_bp.route('/follow/<id>', methods=['GET'])
 @token_auth.login_required
 def follow(id):
@@ -40,6 +43,7 @@ def follow(id):
      return 'Success'
 
 
+# 取消关注
 @user_bp.route('/unfollow/<id>', methods=['GET'])
 @token_auth.login_required
 def unfollow(id):
@@ -55,11 +59,27 @@ def unfollow(id):
 
 # 获得用户id的所有粉丝
 @user_bp.route('/getOnesFans/<id>', methods=['GET'])
+@token_auth.login_required
 def get_ones_fans(id):
     que = user.query.get_or_404(id)                 # 得到id对应的用户que
     page = request.args.get('page', 1, type=int)
     per_page = 10
     pagi = user.pagnitede_dict(que.followers, page, per_page, 'user.get_ones_fans', id=id)  # que.followers得到que的所有粉丝，分页
+    for item in pagi['items']:
+         item['is_following'] = g.current_user.is_following(user.query.get(item['id']))                     # 对于que的每个粉丝item['id']，查看g.current_user是否关注过
+    return jsonify(pagi)
+
+
+# 获得用户id的所有关注者
+@user_bp.route('/getOnesFolloweds/<id>', methods=['GET'])
+@token_auth.login_required
+def get_ones_followeds(id):
+    que = user.query.get_or_404(id)                 # 得到id对应的用户que
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    pagi = user.pagnitede_dict(que.followeds, page, per_page, 'user.get_ones_followeds', id=id)  # que.followers得到que的所有粉丝，分页
+    for item in pagi['items']:
+         item['is_following'] = g.current_user.is_following(user.query.get(item['id']))                     # 对于que的每个粉丝item['id']，查看g.current_user是否关注过
     return jsonify(pagi)
 
 
