@@ -2,6 +2,7 @@ from .auth import token_auth
 from flask import request, Blueprint, jsonify, g
 from ..extensions import db
 from ..model import user, article  # model引用必须在db和login_manager之后，以免引起循环引用
+
 user_bp = Blueprint('user', __name__)
 
 
@@ -63,10 +64,10 @@ def unfollow(id):
 def get_ones_fans(id):
     que = user.query.get_or_404(id)                 # 得到id对应的用户que
     page = request.args.get('page', 1, type=int)
-    per_page = 10
+    per_page = 5
     pagi = user.pagnitede_dict(que.followers, page, per_page, 'user.get_ones_fans', id=id)  # que.followers得到que的所有粉丝，分页
     for item in pagi['items']:
-         item['is_following'] = g.current_user.is_following(user.query.get(item['id']))                     # 对于que的每个粉丝item['id']，查看g.current_user是否关注过
+         item['is_following'] = g.current_user.is_following(user.query.get(item['id']))        # 对于que的每个粉丝item['id']，查看g.current_user是否关注过
     return jsonify(pagi)
 
 
@@ -76,11 +77,14 @@ def get_ones_fans(id):
 def get_ones_followeds(id):
     que = user.query.get_or_404(id)                 # 得到id对应的用户que
     page = request.args.get('page', 1, type=int)
-    per_page = 10
+    per_page = 5
     pagi = user.pagnitede_dict(que.followeds, page, per_page, 'user.get_ones_followeds', id=id)  # que.followers得到que的所有粉丝，分页
     for item in pagi['items']:
          item['is_following'] = g.current_user.is_following(user.query.get(item['id']))                     # 对于que的每个粉丝item['id']，查看g.current_user是否关注过
     return jsonify(pagi)
+
+
+
 
 
 

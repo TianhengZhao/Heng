@@ -1,7 +1,7 @@
 from .auth import token_auth
 from flask import Blueprint, request, g, jsonify
 from ..extensions import db
-# from .error import bad_request
+
 
 from ..model import article
 
@@ -56,9 +56,12 @@ def delete_post(id):
 @post_bp.route('/getOnesPosts/<id>', methods=['GET'])
 def get_ones_posts(id):
     page = request.args.get('page', 1, type=int)
-    per_page = 10
+    per_page = 5
     pagi = article.pagnitede_dict(article.query.filter_by(author_id = id).order_by(article.timestamp.desc()), page, per_page, 'post.get_ones_posts', id=id)
     return jsonify(pagi)
+
+
+
 
 
 

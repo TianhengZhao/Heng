@@ -10,6 +10,7 @@ from .extensions import db
 from flask import current_app
 from itsdangerous import BadSignature, SignatureExpired
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer   # 从itsdangerous（提供签名辅助类）导入JWS令牌；
+from werkzeug.security import generate_password_hash
 
 
 class paginatededAPI(object):
@@ -76,6 +77,9 @@ class user(paginatededAPI, db.Model, UserMixin):
             followers, (followers.c.followed_id == article.author_id)    # 将关联表和文章表进行关联
         ).filter(followers.c.follower_id == self.id)                     # 找出当前用户所关注用户的文章
         return followed.order_by(article.timestamp.desc())
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password, method='pbkdf2:sha256', salt_length=8)
 
     def validate_password(self, password):
         return check_password_hash(self.password_hash, password)  # 返回值为True表示密码正确
