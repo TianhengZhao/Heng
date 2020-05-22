@@ -1,7 +1,7 @@
 from .auth import token_auth
 from flask import Blueprint, request, g, jsonify
 from ..extensions import db
-
+from werkzeug.http import HTTP_STATUS_CODES
 
 from ..model import article
 
@@ -59,6 +59,26 @@ def get_ones_posts(id):
     per_page = 5
     pagi = article.pagnitede_dict(article.query.filter_by(author_id = id).order_by(article.timestamp.desc()), page, per_page, 'post.get_ones_posts', id=id)
     return jsonify(pagi)
+
+
+def error_response(status_code, message=None):     # 返回状态码及信息
+    payload = {'error': HTTP_STATUS_CODES.get(status_code, 'Unknown error')}     # ？？？
+    if message:
+        payload['message'] = message
+    response = jsonify(payload)
+    response.status_code = status_code
+    return response
+
+
+@post_bp.app_errorhandler(404)
+def not_found_error(error):
+    return error_response(404)
+
+
+@post_bp.app_errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return error_response(500)
 
 
 

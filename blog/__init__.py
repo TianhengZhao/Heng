@@ -7,6 +7,7 @@ from .model import user
 from .blueprints.auth import auth_bp
 from .blueprints.user import user_bp
 from .blueprints.post import post_bp
+from .blueprints.comment import comment_bp
 
 
 def create_app(config_name=None):
@@ -33,4 +34,5 @@ def register_blueprints(app):
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(user_bp, url_prefix='/user')
     app.register_blueprint(post_bp, url_prefix='/post')
+    app.register_blueprint(comment_bp, url_prefix='/comment')
 

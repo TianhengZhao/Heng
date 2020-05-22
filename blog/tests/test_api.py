@@ -1,5 +1,6 @@
 from base64 import b64encode
 from datetime import datetime, timedelta
+from flask import jsonify
 import json
 import re
 import unittest
@@ -53,14 +54,17 @@ class APITestCase(unittest.TestCase):
             'Content-Type': 'application/json'
         }
 
-    def test_get_token(self):
-        u = user(username='zhao', email='zhao@163.com')    # 创建测试用户
-        u.set_password('123')
-        db.session.add(u)
-        db.session.commit()
+    """def test_signin_login(self):
+        data = jsonify({
+            'username': 'zhao',
+            'email': 'zhao@163.com',
+            'password': '123'
+        })
+        response = self.client.post('/auth/signinData',data)
+        self.assertEqual(response.status_code, 302)
 
         # 输入错误的用户密码
-        headers = self.get_basic_auth_headers('zhao', '12345')
-        response = self.client.post('/auth/loginData', headers = headers)
-        self.assertEqual(response.status_code, 401)
+        #headers = self.get_basic_auth_headers('zhao', '12345')
+        #response = self.client.post('/auth/loginData', headers = headers)
+        #self.assertEqual(response.status_code, 401)"""
 

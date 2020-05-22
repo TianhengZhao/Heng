@@ -27,20 +27,21 @@ def signinData():
 
 
 # 验证用户名和密码（basic_anth，不产生token）
-@basic_auth.verify_password
-def verify_psw(username, password):
-    que = user.query.filter_by(username=username).first()
-    if que is not None and que.validate_password(password):                      # 用户是否存在
+@auth_bp.route('/loginData',methods=['GET', 'POST'])
+def login():
+    data = request.get_json()
+    que = user.query.filter_by(username=data['username']).first()
+    if que is not None and que.validate_password(data['password']):                      # 用户是否存在
         g.current_user = que                  # 将该用户赋给 g.current_user
         login_user(que)
+        return g.current_user.generate_token(86400)                         # token有效期设置为1天
     else:
         return False
 
 
-@auth_bp.route('/getToken', methods=['POST'])
-@basic_auth.login_required
+@auth_bp.route('/getToken', methods=['GET'])
 def get_token():
-    token = g.current_user.generate_token(600)                   # token有效期设置为七天
+    token = g.current_user.generate_token(600)
     db.session.commit()
     return token
 

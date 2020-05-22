@@ -43,6 +43,7 @@ followers = db.Table(                                 # 关联表
 )
 
 
+# 用户模型
 class user(paginatededAPI, db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(20), unique=True, index=True)  # 建立索引
@@ -51,7 +52,8 @@ class user(paginatededAPI, db.Model, UserMixin):
     about_me = db.Column(db.String(256))
     reg_since = db.Column(db.DateTime(), default=datetime.utcnow)
     sex = db.Column(db.String(5))
-    posts = db.relationship('article', backref='author', lazy='dynamic', cascade='all,delete-orphan')     # user和post建立双向关系
+    posts = db.relationship('article', backref='author', lazy='dynamic', cascade='all,delete-orphan')     # user和post建立双向关系backref
+    comments = db.relationship('comment', backref='author', lazy='dynamic',cascade='all, delete-orphan')
     followeds = db.relationship(
         'user',                            # 关联表名，自引用
         secondary=followers,             # 指明用于该关系的关联表
@@ -103,7 +105,7 @@ class user(paginatededAPI, db.Model, UserMixin):
         }
         return data
 
-    def generate_token(self, expire_in=None, **kwargs):  # 产生令牌   这个有效时间没大搞明白？？？
+    def generate_token(self, expire_in=None, **kwargs):  # 产生令牌
         s = Serializer(current_app.config['SECRET_KEY'], expire_in)  # 序列化对象
         data = {'id': self.id, 'name': self.username}
         data.update(**kwargs)
@@ -120,8 +122,9 @@ class user(paginatededAPI, db.Model, UserMixin):
         return user.query.get(data['id'])
 
 
+# 文章模型
 class article(paginatededAPI, db.Model):
-    __tablename__ = 'posts'
+    __tablename__ = 'article'
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255))
     summary = db.Column(db.Text)
@@ -129,6 +132,7 @@ class article(paginatededAPI, db.Model):
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     views = db.Column(db.Integer, default=0)
     author_id = db.Column(db.Integer, db.ForeignKey('user.id'))                       # 将author_id设为外键
+    comments = db.relationship('comment', backref='post', lazy='dynamic',cascade='all, delete-orphan')
 
     def __repr__(self):
         return '<Post {}>'.format(self.title)
@@ -153,3 +157,34 @@ class article(paginatededAPI, db.Model):
         for field in ['title', 'summary', 'body']:
             if field in data:
                 setattr(self, field, data[field])   # setattr(object, name, value)用于设置属性
+
+
+# 评论模型
+class comment(paginatededAPI, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    body = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    # mark_read = db.Column(db.Boolean, default=False)                    # 评论是否已读标志位
+    disabled = db.Column(db.Boolean, default=False)                       # 屏蔽评论
+    author_id = db.Column(db.Integer, db.ForeignKey('user.id'))           # 将user.id设置为外键，和user形成一对多关系
+    article_id = db.Column(db.Integer, db.ForeignKey('article.id'))       # 将article.id设置为外键，和article形成一对多关系
+    parent_id = db.Column(db.Integer, db.ForeignKey('comment.id', ondelete='CASCADE'))  # 自引用，将子评论的id设为外键
+    # 级联删除定义在多的一侧，parent是“一”，children是“多”；用remote_side参数指定‘一’的一方，值为一个Colmun对象（必须唯一）
+    parent = db.relationship('comment', backref=db.backref('children', cascade='all, delete-orphan'), remote_side=[id])
+
+    def __repr__(self):
+        return '<Comment {}>'.format(self.id)
+
+    def get_descendants(self):           # 获得一级评论的所有子孙评论
+        data = set()
+
+        def descendants(comment):
+            if comment.children:          # 如果该评论有子评论
+                data.update(comment.children)
+                for child in comment.children:
+                    descendants(child)        # 递归得到comment的所有子孙评论
+
+        descendants(self)
+        return data
+
+
