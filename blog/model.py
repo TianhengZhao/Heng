@@ -52,8 +52,8 @@ class user(paginatededAPI, db.Model, UserMixin):
     about_me = db.Column(db.String(256))
     reg_since = db.Column(db.DateTime(), default=datetime.utcnow)
     sex = db.Column(db.String(5))
-    posts = db.relationship('article', backref='author', lazy='dynamic', cascade='all,delete-orphan')     # user和post建立双向关系backref
-    comments = db.relationship('comment', backref='author', lazy='dynamic',cascade='all, delete-orphan')
+    posts = db.relationship('article', backref='author', lazy='dynamic', cascade='all,delete-orphan')     # user和post建立双向关系backref，user为‘一’，posts为‘多’
+    comments = db.relationship('comment', backref='author', lazy='dynamic',cascade='all, delete-orphan')  #user为‘一’，comments为‘多’
     followeds = db.relationship(
         'user',                            # 关联表名，自引用
         secondary=followers,             # 指明用于该关系的关联表
@@ -132,7 +132,7 @@ class article(paginatededAPI, db.Model):
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     views = db.Column(db.Integer, default=0)
     author_id = db.Column(db.Integer, db.ForeignKey('user.id'))                       # 将author_id设为外键
-    comments = db.relationship('comment', backref='post', lazy='dynamic',cascade='all, delete-orphan')
+    comments = db.relationship('comment', backref='post', lazy='dynamic',cascade='all, delete-orphan')  # user为‘一’，comments为‘多’
 
     def __repr__(self):
         return '<Post {}>'.format(self.title)
@@ -167,8 +167,9 @@ class comment(paginatededAPI, db.Model):
     # mark_read = db.Column(db.Boolean, default=False)                    # 评论是否已读标志位
     disabled = db.Column(db.Boolean, default=False)                       # 屏蔽评论
     author_id = db.Column(db.Integer, db.ForeignKey('user.id'))           # 将user.id设置为外键，和user形成一对多关系
-    article_id = db.Column(db.Integer, db.ForeignKey('article.id'))       # 将article.id设置为外键，和article形成一对多关系
-    parent_id = db.Column(db.Integer, db.ForeignKey('comment.id', ondelete='CASCADE'))  # 自引用，将子评论的id设为外键
+    article_id = db.Column(db.Integer, db.ForeignKey('article.id'), index=True)       # 将article.id设置为外键，和article形成一对多关系
+
+    parent_id = db.Column(db.Integer, db.ForeignKey('comment.id', ondelete='CASCADE'))  # 自引用，将父评论的id设为外键
     # 级联删除定义在多的一侧，parent是“一”，children是“多”；用remote_side参数指定‘一’的一方，值为一个Colmun对象（必须唯一）
     parent = db.relationship('comment', backref=db.backref('children', cascade='all, delete-orphan'), remote_side=[id])
 
@@ -185,6 +186,22 @@ class comment(paginatededAPI, db.Model):
                     descendants(child)        # 递归得到comment的所有子孙评论
 
         descendants(self)
+        return data
+
+    def to_dict(self):
+        data = {
+            'id':self.id,
+            'disabled':self.disabled,
+            'body': self.body,
+            'timestamp': self.timestamp,
+            'post': self.post.to_dict(),
+            'author': self.author.to_dict(),
+            '_links': {
+                'self': url_for('comment.get_comment', id=self.id),
+                'author_url': url_for('user.get_user', id=self.author_id),
+                'post_url': url_for('post.get_post', id=self.article_id),
+            }
+        }
         return data
 
 

@@ -1,9 +1,9 @@
 from .auth import token_auth
-from flask import Blueprint, request, g, jsonify
+from flask import Blueprint, request, g, jsonify, url_for
 from ..extensions import db
 from werkzeug.http import HTTP_STATUS_CODES
 
-from ..model import article
+from ..model import article, comment
 
 post_bp = Blueprint('post', __name__)
 
@@ -13,14 +13,15 @@ post_bp = Blueprint('post', __name__)
 @token_auth.login_required
 def add_post():
     data = request.get_json()
-    '''if not data:
-        return bad_request('please send JSON data')'''
     posts = article()
     posts.from_dict(data)
     posts.author = g.current_user
     db.session.add(posts)
     db.session.commit()
-    return 'Success'
+    response = jsonify(posts.to_dict())
+    response.status_code = 201  # 201(已创建)请求成功并且服务器创建了新的资源
+    response.headers['Location'] = url_for('post.get_post', id=posts.id)  # HTTP协议要求201响应包含一个值为新资源URL的Location头部
+    return response
 
 
 # 获得所有发表文章
@@ -59,6 +60,21 @@ def get_ones_posts(id):
     per_page = 5
     pagi = article.pagnitede_dict(article.query.filter_by(author_id = id).order_by(article.timestamp.desc()), page, per_page, 'post.get_ones_posts', id=id)
     return jsonify(pagi)
+
+
+# 获取文章id的所有评论
+@post_bp.route('/getComments/<id>', methods=['GET'])
+def get_comments(id):
+    page = request.args.get('page', 1, type=int)
+    per_page = 5
+    post = article.query.get_or_404(id)
+    data = comment.pagnitede_dict(post.comments.filter(comment.parent==None).order_by(comment.timestamp.desc()),  page, per_page, 'post.get_comments', id=id)  # 获得一级评论
+    for item in data['items']:                              # 对于page中的每一项
+        com = comment.query.get(item['id'])
+        descendants = [child.to_dict() for child in com.get_descendants()]    # 得到该评论的所有子孙评论
+        from operator import itemgetter
+        item['descendants'] = sorted(descendants, key=itemgetter('timestamp'))  # 按 timestamp 排序一个字典列表
+    return jsonify(data)
 
 
 def error_response(status_code, message=None):     # 返回状态码及信息

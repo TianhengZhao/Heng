@@ -1,5 +1,5 @@
 from flask_login import login_user
-from flask import request, Blueprint, g, jsonify
+from flask import request, Blueprint, g, jsonify, url_for
 from flask_httpauth import HTTPBasicAuth, HTTPTokenAuth
 from ..extensions import db
 from werkzeug.security import generate_password_hash
@@ -23,7 +23,11 @@ def signinData():
             user0.set_password(data['password'])
             db.session.add(user0)
             db.session.commit()
-            return 'Success'       # 必须有返回值
+            response = jsonify(user0.to_dict())
+            response.status_code = 201
+            # HTTP协议要求201响应包含一个值为新资源URL的Location头部
+            response.headers['Location'] = url_for('user.get_user', id=user0.id)
+            return response
 
 
 # 验证用户名和密码（basic_anth，不产生token）
