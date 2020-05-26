@@ -132,7 +132,7 @@ class article(paginatededAPI, db.Model):
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     views = db.Column(db.Integer, default=0)
     author_id = db.Column(db.Integer, db.ForeignKey('user.id'))                       # 将author_id设为外键
-    comments = db.relationship('comment', backref='post', lazy='dynamic',cascade='all, delete-orphan')  # user为‘一’，comments为‘多’
+    comments = db.relationship('comment', backref='post', lazy='dynamic', cascade='all, delete-orphan')  # user为‘一’，comments为‘多’
 
     def __repr__(self):
         return '<Post {}>'.format(self.title)
@@ -159,15 +159,27 @@ class article(paginatededAPI, db.Model):
                 setattr(self, field, data[field])   # setattr(object, name, value)用于设置属性
 
 
+comments_likes = db.Table(                         # 建立关联表
+    'comments_likes',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id')),
+    db.Column('comment_id', db.Integer, db.ForeignKey('comment.id')),
+    db.Column('timestamp', db.DateTime, default=datetime.utcnow())
+)
+
+
 # 评论模型
 class comment(paginatededAPI, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     body = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
-    # mark_read = db.Column(db.Boolean, default=False)                    # 评论是否已读标志位
+    mark_read = db.Column(db.Boolean, default=False)                    # 评论是否已读标志位
     disabled = db.Column(db.Boolean, default=False)                       # 屏蔽评论
     author_id = db.Column(db.Integer, db.ForeignKey('user.id'))           # 将user.id设置为外键，和user形成一对多关系
     article_id = db.Column(db.Integer, db.ForeignKey('article.id'), index=True)       # 将article.id设置为外键，和article形成一对多关系
+    likers = db.relationship(                                           # 评论点赞数，comment与user建立多对多关系
+        'user',
+        secondary=comments_likes,
+        backref=db.backref('liked_comments',  lazy='dynamic'))
 
     parent_id = db.Column(db.Integer, db.ForeignKey('comment.id', ondelete='CASCADE'))  # 自引用，将父评论的id设为外键
     # 级联删除定义在多的一侧，parent是“一”，children是“多”；用remote_side参数指定‘一’的一方，值为一个Colmun对象（必须唯一）
@@ -188,12 +200,32 @@ class comment(paginatededAPI, db.Model):
         descendants(self)
         return data
 
+    def is_liked_by(self, this_user):                    # 用户是否赞过该评论
+        return this_user in self.likers
+
+    def like(self, this_user):                           # 点赞
+        if not self.is_liked_by(this_user):
+            return self.likers.append(this_user)
+
+    def cancle_like(self, this_user):                   # 取消点赞
+        if self.is_liked_by(this_user):
+            return self.likers.remove(this_user)
+
+    def likes_count(self):
+        return len(self.likers)
+
+    def from_dict(self, data):
+        for field in ['body', 'timestamp', 'mark_read', 'disabled', 'author_id', 'article_id', 'parent_id']:
+            if field in data:                          # in 判断 key in dict
+                setattr(self, field, data[field])
+
     def to_dict(self):
         data = {
-            'id':self.id,
-            'disabled':self.disabled,
+            'id': self.id,
+            'disabled': self.disabled,
             'body': self.body,
             'timestamp': self.timestamp,
+            'likers_id': [liker.id for liker in self.likers],
             'post': self.post.to_dict(),
             'author': self.author.to_dict(),
             '_links': {
