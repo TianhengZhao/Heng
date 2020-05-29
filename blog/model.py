@@ -52,6 +52,7 @@ class user(paginatededAPI, db.Model, UserMixin):
     about_me = db.Column(db.String(256))
     reg_since = db.Column(db.DateTime(), default=datetime.utcnow)
     sex = db.Column(db.String(5))
+    last_received_comments_read_time = db.Column(db.DateTime)
     posts = db.relationship('article', backref='author', lazy='dynamic', cascade='all,delete-orphan')     # user和post建立双向关系backref，user为‘一’，posts为‘多’
     comments = db.relationship('comment', backref='author', lazy='dynamic',cascade='all, delete-orphan')  #user为‘一’，comments为‘多’
     followeds = db.relationship(
@@ -228,6 +229,7 @@ class comment(paginatededAPI, db.Model):
             'likers_id': [liker.id for liker in self.likers],
             'post': self.post.to_dict(),
             'author': self.author.to_dict(),
+            'parent': self.parent.to_dict() if self.parent else None,
             '_links': {
                 'self': url_for('comment.get_comment', id=self.id),
                 'author_url': url_for('user.get_user', id=self.author_id),

@@ -17,6 +17,8 @@ def add_comment():
     com.body = new_body.replace('\n', '')
     com.author = g.current_user
     com.post = post
+    if data['parentId'] is not 0:
+        com.parent_id = data['parentId']
     db.session.add(com)
     db.session.commit()
     response = jsonify(com.to_dict())

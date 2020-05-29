@@ -67,12 +67,12 @@ def get_comments(id):
     page = request.args.get('page', 1, type=int)
     per_page = 5
     post = article.query.get_or_404(id)
-    data = comment.pagnitede_dict(post.comments.filter(comment.parent==None).order_by(comment.timestamp.desc()),  page, per_page, 'post.get_comments', id=id)  # 获得一级评论
+    data = comment.pagnitede_dict(post.comments.filter(comment.parent == None).order_by(comment.timestamp.desc()),  page, per_page, 'post.get_comments', id=id)  # 获得一级评论，按时间降序
     for item in data['items']:                              # 对于page中的每一项
         com = comment.query.get(item['id'])
         descendants = [child.to_dict() for child in com.get_descendants()]    # 得到该评论的所有子孙评论
         from operator import itemgetter
-        item['descendants'] = sorted(descendants, key=itemgetter('timestamp'))  # 按 timestamp 排序一个字典列表
+        item['descendants'] = sorted(descendants, key=itemgetter('timestamp'))  # 按 timestamp 排序一个字典列表，按时间升序
     return jsonify(data)
 
 
