@@ -1,5 +1,6 @@
 from .auth import token_auth
 from flask import request, Blueprint, jsonify, g
+from datetime import datetime
 from ..extensions import db
 from .post import error_response
 from ..model import user, comment, article  # model引用必须在db和login_manager之后，以免引起循环引用
@@ -93,12 +94,20 @@ def get_received_comments(id):
     if que != g.current_user:
         return error_response(403)
     page = request.args.get('page', 1, type=int)
-    per_page = 4
+    per_page = 5
     post_ids = [post.id for post in que.posts.all()]          # 用户发表的所有文章的id
     pagi = user.pagnitede_dict(
         comment.query.filter(comment.article_id.in_(post_ids), comment.author != g.current_user).   # 得到用户所有文章的所有他人评论
             order_by(comment.mark_read, comment.timestamp.desc()),                                  # 将评论按未读->已读、时间倒序排序
         page, per_page, 'user.get_received_comments', id=id)
+    last_read_time = g.current_user.last_received_comments_read_time or datetime(1900, 1, 1)
+    for item in pagi['items']:
+        if item['timestamp'] > last_read_time:               # 当前评论时间戳大于上次查看时间，说明是新评论
+            item['is_new'] = True
+    que.last_received_comments_read_time = datetime.utcnow()    # 将上次查看时间设为当前时间
+    db.session.commit()
+    return jsonify(pagi)
+
 
 
 

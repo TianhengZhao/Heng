@@ -1,11 +1,13 @@
 """
   author: Tianheng Zhao
 """
+import json
 from flask_login import UserMixin
 from hashlib import md5
 from werkzeug.security import check_password_hash
 from flask import url_for
 from datetime import datetime
+from time import time
 from .extensions import db
 from flask import current_app
 from itsdangerous import BadSignature, SignatureExpired
@@ -55,6 +57,7 @@ class user(paginatededAPI, db.Model, UserMixin):
     last_received_comments_read_time = db.Column(db.DateTime)
     posts = db.relationship('article', backref='author', lazy='dynamic', cascade='all,delete-orphan')     # user和post建立双向关系backref，user为‘一’，posts为‘多’
     comments = db.relationship('comment', backref='author', lazy='dynamic',cascade='all, delete-orphan')  #user为‘一’，comments为‘多’
+    notifications = db.relationship('notification', backref='author', lazy='dynamic',cascade='all, delete-orphan')
     followeds = db.relationship(
         'user',                            # 关联表名，自引用
         secondary=followers,             # 指明用于该关系的关联表
@@ -238,4 +241,39 @@ class comment(paginatededAPI, db.Model):
         }
         return data
 
+
+class notification(db.Model):
+    id = db.Column(db.Integer, primary_key = True)
+    name = db.Column(db.String(128), index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    timestamp = db.Column(db.Float, index=True, default=time)
+    payload_json = db.Column(db.Text)
+
+    def __repr__(self):
+        return '<Notification {}>'.format(self.id)
+
+    def get_data(self):
+        return json.loads(str(self.payload_json))
+
+    def to_dict(self):
+        data = {
+            'id': self.id,
+            'name': self.name,
+            'user': {
+                'id': self.author.id,
+                'username': self.author.username,
+                'avatar': self.author.avatar(128)
+            },
+            'timestamp': self.timestamp,
+            '_links': {
+                'self': url_for('notification.get_notification', id=self.id),
+                'user_url': url_for('user.get_user', id=self.user_id)
+            }
+        }
+        return data
+
+    def from_dict(self, data):
+        for field in ['body', 'timestamp']:
+            if field in data:
+                setattr(self, field, data[field])
 
