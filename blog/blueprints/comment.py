@@ -17,6 +17,7 @@ def add_comment():
     com.body = new_body.replace('\n', '')
     com.author = g.current_user
     com.post = post
+    com.post.author.add_new_notification('new_received_comment', com.post.author.new_received_comment())  # 更新未读通知数目
     if data['parentId'] is not 0:
         com.parent_id = data['parentId']
     db.session.add(com)
@@ -39,6 +40,7 @@ def get_comment(id):
 @token_auth.login_required
 def delete_com(id):
     com = comment.query.get_or_404(id)
+    com.post.author.add_new_notification('new_received_comment', com.post.author.new_received_comment())  # 更新未读通知数目
     db.session.delete(com)
     db.session.commit()
     return 'Success'

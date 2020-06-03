@@ -42,6 +42,7 @@ def follow(id):
      if g.current_user.is_following(que):
           return 'Wrong'
      g.current_user.follow(que)
+     que.add_new_notification('new_received_followers', que.new_received_followers())  # 更新未读通知数目
      db.session.commit()
      return 'Success'
 
@@ -69,11 +70,26 @@ def get_ones_fans(id):
     per_page = 4
     pagi = user.pagnitede_dict(que.followers, page, per_page, 'user.get_ones_fans', id=id)  # que.followers得到que的所有粉丝，分页
     for item in pagi['items']:
-         item['is_following'] = g.current_user.is_following(user.query.get(item['id']))        # 对于que的每个粉丝item['id']，查看g.current_user是否关注过
+        item['is_following'] = g.current_user.is_following(user.query.get(item['id']))    # 对于que的每个粉丝item['id']，查看g.current_user是否关注过
+        res = db.engine.execute("select * from followers where follower_id={} and followed_id={}".format(item['id'], que.id))   # 获得关联表中timestamp
+        item['timestamp'] = list(res)[0][2]
+    mark = request.args.get('mark')
+    if mark == 'true':  # 字符串形式
+        pagi['has_new'] = False
+        que.last_received_followers_read_time = datetime.utcnow()
+        for item in pagi['items']:
+            item['is_new'] = False
+    else:
+        last_read_time = g.current_user.last_received_followers_read_time or datetime(1900, 1, 1)
+        for item in pagi['items']:
+            if item['timestamp'] > last_read_time:
+                item['is_new'] = True
+                pagi['has_new'] = True
+    db.session.commit()
     return jsonify(pagi)
 
 
-# 获得用户id的所有关注者
+# 获得用户id的所有关注者（大神）
 @user_bp.route('/getOnesFolloweds/<id>', methods=['GET'])
 @token_auth.login_required
 def get_ones_followeds(id):
@@ -100,11 +116,19 @@ def get_received_comments(id):
         comment.query.filter(comment.article_id.in_(post_ids), comment.author != g.current_user).   # 得到用户所有文章的所有他人评论
             order_by(comment.mark_read, comment.timestamp.desc()),                                  # 将评论按未读->已读、时间倒序排序
         page, per_page, 'user.get_received_comments', id=id)
-    last_read_time = g.current_user.last_received_comments_read_time or datetime(1900, 1, 1)
-    for item in pagi['items']:
-        if item['timestamp'] > last_read_time:               # 当前评论时间戳大于上次查看时间，说明是新评论
-            item['is_new'] = True
-    que.last_received_comments_read_time = datetime.utcnow()    # 将上次查看时间设为当前时间
+    mark = request.args.get('mark')
+    if mark == 'true':           # 字符串形式
+        pagi['has_new'] = False
+        que.last_received_comments_read_time = datetime.utcnow()
+        que.add_notification('new_received_comment', 0)
+        for item in pagi['items']:
+                item['is_new'] = False
+    else:
+        last_read_time = g.current_user.last_received_comments_read_time or datetime(1900, 1, 1)
+        for item in pagi['items']:
+            if item['timestamp'] > last_read_time:               # 当前评论时间戳大于上次查看时间，说明是新评论
+                item['is_new'] = True
+                pagi['has_new'] = True
     db.session.commit()
     return jsonify(pagi)
 

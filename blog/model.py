@@ -54,7 +54,10 @@ class user(paginatededAPI, db.Model, UserMixin):
     about_me = db.Column(db.String(256))
     reg_since = db.Column(db.DateTime(), default=datetime.utcnow)
     sex = db.Column(db.String(5))
-    last_received_comments_read_time = db.Column(db.DateTime)
+    last_received_comments_read_time = db.Column(db.DateTime)          # 上次查看新评论时间
+    last_received_followers_read_time = db.Column(db.DateTime)         # 上次查看新粉丝时间
+    last_received_likes_read_time = db.Column(db.DateTime)             # 上次查看新的赞时间
+    last_followed_posts_read_time = db.Column(db.DateTime)             # 上次查看关注者文章时间
     posts = db.relationship('article', backref='author', lazy='dynamic', cascade='all,delete-orphan')     # user和post建立双向关系backref，user为‘一’，posts为‘多’
     comments = db.relationship('comment', backref='author', lazy='dynamic',cascade='all, delete-orphan')  #user为‘一’，comments为‘多’
     notifications = db.relationship('notification', backref='author', lazy='dynamic',cascade='all, delete-orphan')
@@ -93,6 +96,35 @@ class user(paginatededAPI, db.Model, UserMixin):
     def avatar(self, size):
         digest = md5(self.email.lower().encode('utf-8')).hexdigest()  # 以utf-8格式编码邮箱，然后得到MD5哈希值，以16进制表示
         return 'https://www.gravatar.com/avatar/{}?d=identicon&s={}'.format(digest, size)
+
+    # 用户获得的新评论的个数
+    def new_received_comment(self):
+        last_read_time = self.last_received_comments_read_time or datetime(1900, 1, 1)
+        all_posts = [post.id for post in self.posts.all()]
+        all_comments = comment.query.filter(comment.article_id.in_(all_posts), comment.author != self)
+        new_comments = all_comments.filter(comment.timestamp > last_read_time).count()
+        return new_comments
+
+    # 用户新粉丝的个数
+    def new_received_followers(self):
+        last_read_time = self.last_received_comments_read_time or datetime(1900, 1, 1)
+        new_followers = self.followers.filter(followers.c.timestamp > last_read_time).count()
+        return new_followers
+
+    # 用户新赞的个数
+    """def new_received_likes(self):
+        last_read_time = self.last_received_likes_read_time or datetime(1900, 1, 1)
+        all_posts = [post.id for post in self.posts.all()]
+        all_comments = comment.query.filter(comment.article_id.in_(all_posts))
+        all_likers = all_comments.filter(all_comments.likers.timestamp >last_read_time)"""
+
+    # 给用户添加新的通知
+    def add_new_notification(self, name, data):
+        self.notifications.filter_by(name=name).delete()
+        # 为用户添加通知，写入数据库
+        n = notification(name=name, payload_json=json.dumps(data), user_id=self.id)
+        db.session.add(n)
+        return n
 
     def to_dict(self):
         data = {
