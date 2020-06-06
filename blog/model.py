@@ -81,7 +81,7 @@ class user(paginatededAPI, db.Model, UserMixin):
         if self.is_following(obj):                    # 如果当前user关注了该obj
             self.followeds.remove(obj)                      # 在关联表中删除self对应的obj
 
-    def followed_posts(self, obj):
+    def followed_posts(self):
         followed = article.query.join(
             followers, (followers.c.followed_id == article.author_id)    # 将关联表和文章表进行关联
         ).filter(followers.c.follower_id == self.id)                     # 找出当前用户所关注用户的文章
@@ -112,11 +112,17 @@ class user(paginatededAPI, db.Model, UserMixin):
         return new_followers
 
     # 用户新赞的个数
-    """def new_received_likes(self):
+    def new_received_likes(self):
         last_read_time = self.last_received_likes_read_time or datetime(1900, 1, 1)
-        all_posts = [post.id for post in self.posts.all()]
-        all_comments = comment.query.filter(comment.article_id.in_(all_posts))
-        all_likers = all_comments.filter(all_comments.likers.timestamp >last_read_time)"""
+        all_comments = self.comments.join(comments_likes)
+        new_likes_count = 0
+        for c in all_comments:
+            for u in c.likers:
+                res = db.engine.execute('select * from comments_likes where user_id={} and comment_id={}'.format(u.id, c.id))
+                timestamp = list(res)[0][2]
+                if timestamp > last_read_time:
+                    new_likes_count += 1
+        return new_likes_count
 
     # 给用户添加新的通知
     def add_new_notification(self, name, data):

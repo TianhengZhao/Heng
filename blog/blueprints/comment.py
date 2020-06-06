@@ -52,6 +52,7 @@ def delete_com(id):
 def like_comment(id):
     com = comment.query.get_or_404(id)
     com.like(g.current_user)
+    com.author.add_new_notification('new_received_likes', com.author.new_received_likes())
     db.session.add(com)
     db.session.commit()
     return 'Success'
@@ -63,6 +64,7 @@ def like_comment(id):
 def unlike_comment(id):
     com = comment.query.get_or_404(id)
     com.cancle_like(g.current_user)
+    com.author.add_new_notification('new_received_likes', com.author.new_received_likes())
     db.session.add(com)
     db.session.commit()
     return 'Success'

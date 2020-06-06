@@ -1,9 +1,10 @@
 from .auth import token_auth
-from flask import request, Blueprint, jsonify, g
+from flask import request, Blueprint, jsonify, g, url_for
 from datetime import datetime
 from ..extensions import db
 from .post import error_response
-from ..model import user, comment, article  # model引用必须在db和login_manager之后，以免引起循环引用
+from operator import itemgetter
+from ..model import user, comment, comments_likes  # model引用必须在db和login_manager之后，以免引起循环引用
 
 user_bp = Blueprint('user', __name__)
 
@@ -103,7 +104,7 @@ def get_ones_followeds(id):
 
 
 # 获得用户id得到的所有评论
-@user_bp.route('/reveivedCommets/<id>', methods = ['GET'])
+@user_bp.route('/receivedComments/<id>', methods = ['GET'])
 @token_auth.login_required
 def get_received_comments(id):
     que = user.query.get_or_404(id)
@@ -112,7 +113,7 @@ def get_received_comments(id):
     page = request.args.get('page', 1, type=int)
     per_page = 5
     post_ids = [post.id for post in que.posts.all()]          # 用户发表的所有文章的id
-    pagi = user.pagnitede_dict(
+    pagi = comment.pagnitede_dict(
         comment.query.filter(comment.article_id.in_(post_ids), comment.author != g.current_user).   # 得到用户所有文章的所有他人评论
             order_by(comment.mark_read, comment.timestamp.desc()),                                  # 将评论按未读->已读、时间倒序排序
         page, per_page, 'user.get_received_comments', id=id)
@@ -120,7 +121,7 @@ def get_received_comments(id):
     if mark == 'true':           # 字符串形式
         pagi['has_new'] = False
         que.last_received_comments_read_time = datetime.utcnow()
-        que.add_notification('new_received_comment', 0)
+        que.add_new_notification('new_received_comment', 0)
         for item in pagi['items']:
                 item['is_new'] = False
     else:
@@ -132,6 +133,78 @@ def get_received_comments(id):
     db.session.commit()
     return jsonify(pagi)
 
+
+# 获得用户id得到的所有赞
+@user_bp.route('/receivedLikes/<id>', methods = ['GET'])
+@token_auth.login_required
+def get_received_likes(id):
+    que = user.query.get_or_404(id)
+    if que != g.current_user:
+        return error_response(403)
+    page = request.args.get('page', 1, type=int)
+    per_page = 5
+    comments = (que.comments.join(comments_likes)).paginate(page, per_page)           # 用户得到的所有赞分页
+    records = {
+        'items': [],
+        '_meta': {
+            'page': page,
+            'per_page': per_page,
+            'total_pages': comments.pages,
+            'total_items': ""
+        },
+        '_links': {
+            'self': url_for('user.get_received_likes', page=page, per_page=per_page, id=id),
+            'next': url_for('user.get_received_likes', page=page + 1, per_page=per_page,
+                            id=id) if comments.has_next else None,
+            'prev': url_for('user.get_received_likes', page=page - 1, per_page=per_page,
+                            id=id) if comments.has_prev else None
+        }
+    }
+    count = 0
+    for c in comments.items:
+        # 重组数据，变成: (谁) (什么时间) 点赞了你的 (哪条评论)
+        for u in c.likers:
+            data = {}
+            data['author'] = u.to_dict()
+            data['comment'] = c.to_dict()
+            # 获取点赞时间
+            res = db.engine.execute(
+                "select * from comments_likes where user_id={} and comment_id={}".format(u.id, c.id))
+            data['timestamp'] = list(res)[0][2]
+            # 标记本条点赞记录是否为新的
+            records['items'].append(data)
+            count += 1
+        # 按 timestamp 排序一个字典列表(倒序，最新关注的人在最前面)
+    records['_meta']['total_items'] = count
+    records['items'] = sorted(records['items'], key=itemgetter('timestamp'), reverse=True)
+    mark = request.args.get('mark')
+    if mark == 'true':           # 字符串形式
+        records['has_new'] = False
+        que.last_received_likes_read_time = datetime.utcnow()
+        que.add_new_notification('new_received_likes', 0)
+        for item in records['items']:
+                item['is_new'] = False
+    else:
+        last_read_time = que.last_received_likes_read_time or datetime(1900, 1, 1)
+        for item in records['items']:
+            if item['timestamp'] > last_read_time:
+                item['is_new'] = True
+                records['has_new'] = True
+    db.session.commit()
+    return jsonify(records)
+
+
+# 获得用户id关注者的文章
+@user_bp.route('/followedPosts/<id>', methods = ['GET'])
+@token_auth.login_required
+def get_followed_posts(id):
+    que = user.query.get_or_404(id)
+    if que != g.current_user:
+        return error_response(403)
+    page = request.args.get('page', 1, type=int)
+    per_page = 5
+    pagi = user.pagnitede_dict(que.followed_posts(),page, per_page, 'user.get_followed_posts', id=id)
+    return jsonify(pagi)
 
 
 
