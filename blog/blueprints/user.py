@@ -4,7 +4,7 @@ from datetime import datetime
 from ..extensions import db
 from .post import error_response
 from operator import itemgetter
-from ..model import user, comment, comments_likes  # model引用必须在db和login_manager之后，以免引起循环引用
+from ..model import user, comment, comments_likes, notification  # model引用必须在db和login_manager之后，以免引起循环引用
 
 user_bp = Blueprint('user', __name__)
 
@@ -205,6 +205,20 @@ def get_followed_posts(id):
     per_page = 5
     pagi = user.pagnitede_dict(que.followed_posts(),page, per_page, 'user.get_followed_posts', id=id)
     return jsonify(pagi)
+
+
+@user_bp.route('/hasNewNoti/<id>', methods = ['GET'])
+@token_auth.login_required
+def hasNewNoti(id):
+    que = user.query.get_or_404(id)
+    if que != g.current_user:
+        return error_response(403)
+    since = request.args.get('since')
+    noti = que.notifications.filter(notification.timestamp > since)
+    data = [n.to_dict() for n in noti]
+    return jsonify(data)
+
+
 
 
 

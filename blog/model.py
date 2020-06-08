@@ -297,6 +297,7 @@ class notification(db.Model):
         data = {
             'id': self.id,
             'name': self.name,
+            'payload_json': self.payload_json,
             'user': {
                 'id': self.author.id,
                 'username': self.author.username,
