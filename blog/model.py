@@ -59,8 +59,12 @@ class user(paginatededAPI, db.Model, UserMixin):
     last_received_likes_read_time = db.Column(db.DateTime)             # 上次查看新的赞时间
     last_followed_posts_read_time = db.Column(db.DateTime)             # 上次查看关注者文章时间
     posts = db.relationship('article', backref='author', lazy='dynamic', cascade='all,delete-orphan')     # user和post建立双向关系backref，user为‘一’，posts为‘多’
-    comments = db.relationship('comment', backref='author', lazy='dynamic',cascade='all, delete-orphan')  #user为‘一’，comments为‘多’
-    notifications = db.relationship('notification', backref='author', lazy='dynamic',cascade='all, delete-orphan')
+    comments = db.relationship('comment', backref='author', lazy='dynamic', cascade='all, delete-orphan')  #user为‘一’，comments为‘多’
+    notifications = db.relationship('notification', backref='author', lazy='dynamic', cascade='all, delete-orphan')
+    message_send = db.relationship('message', backref='sender', lazy='dynamic', cascade='all, delete-orphan',
+                                   foreign_keys='message.sender_id')
+    message_recipient = db.relationship('message', backref='recipient', lazy='dynamic', cascade='all, delete-orphan',
+                                    foreign_keys='message.recipient_id')
     followeds = db.relationship(
         'user',                            # 关联表名，自引用
         secondary=followers,             # 指明用于该关系的关联表
@@ -101,9 +105,15 @@ class user(paginatededAPI, db.Model, UserMixin):
     def new_received_comment(self):
         last_read_time = self.last_received_comments_read_time or datetime(1900, 1, 1)
         all_posts = [post.id for post in self.posts.all()]
-        all_comments = comment.query.filter(comment.article_id.in_(all_posts), comment.author != self)
-        new_comments = all_comments.filter(comment.timestamp > last_read_time).count()
-        return new_comments
+        post_comments = set(comment.query.filter(comment.article_id.in_(all_posts), comment.author != self).all())  # 我发表的所有文章的所有评论
+        des_comments = set()
+        for c in self.comments:
+            des_comments = des_comments | c.get_descendants()
+        des_comments = des_comments - set(self.comments.all())  # 除去子孙中，用户自己发的(因为是多级评论，用户可能还会在子孙中盖楼)，自己回复的不用通知
+        # 用户收到的总评论集合为 q1 与 q2 的并集
+        recived_comments = post_comments | des_comments
+        # 最后，再过滤掉 last_read_time 之前的评论
+        return len([c for c in recived_comments if c.timestamp > last_read_time])
 
     # 用户新粉丝的个数
     def new_received_followers(self):
@@ -230,13 +240,23 @@ class comment(paginatededAPI, db.Model):
     def __repr__(self):
         return '<Comment {}>'.format(self.id)
 
+    def get_ancestors(self):
+        data = []
+
+        def ancestors(icomment):
+            if icomment.parent:
+                data.append(icomment.parent)
+                ancestors(icomment.parent)
+        ancestors(self)
+        return data
+
     def get_descendants(self):           # 获得一级评论的所有子孙评论
         data = set()
 
-        def descendants(comment):
-            if comment.children:          # 如果该评论有子评论
-                data.update(comment.children)
-                for child in comment.children:
+        def descendants(icomment):
+            if icomment.children:          # 如果该评论有子评论
+                data.update(icomment.children)
+                for child in icomment.children:
                     descendants(child)        # 递归得到comment的所有子孙评论
 
         descendants(self)
@@ -316,3 +336,33 @@ class notification(db.Model):
             if field in data:
                 setattr(self, field, data[field])
 
+
+class message(paginatededAPI, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    body = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+
+    def __repr__(self):
+        return '<Message {}>'.format(self.id)
+
+    def to_dict(self):
+        data = {
+            'id': self.id,
+            'body': self.body,
+            'timestamp': self.timestamp,
+            'sender': self.sender.to_dict(),
+            'recipient': self.recipient.to_dict(),
+            '_links': {
+                'self': url_for('message.get_message', id=self.id),
+                'sender_url': url_for('user.get_user', id=self.sender_id),
+                'recipient_url': url_for('user.get_user', id=self.recipient_id)
+            }
+        }
+        return data
+
+    def from_dict(self, data):
+        for field in ['body', 'timestamp']:
+            if field in data:
+                setattr(self, field, data[field])

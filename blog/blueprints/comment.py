@@ -17,11 +17,20 @@ def add_comment():
     com.body = new_body.replace('\n', '')
     com.author = g.current_user
     com.post = post
-    com.post.author.add_new_notification('new_received_comment', com.post.author.new_received_comment())  # 更新未读通知数目
     if data['parentId'] is not 0:
         com.parent_id = data['parentId']
     db.session.add(com)
     db.session.commit()
+    users = set()      # 该评论添加后需要通知的用户
+    users.add(com.post.author)  # 将文章作者添加进集合中，
+    if comment.parent:           # 如果该评论有父评论
+        ancestors_authors = {c.author for c in com.get_ancestors()}       # 得到所有发表祖先评论的用户
+        users = users | ancestors_authors     # 得到并集
+    # 给各用户发送新评论通知
+    for u in users:
+        u.add_new_notification('new_received_comment',
+                           u.new_received_comment())
+    db.session.commit()  # 更新数据库，写入新通知
     response = jsonify(com.to_dict())
     response.status_code = 201                               # 201(已创建)请求成功并且服务器创建了新的资源
     response.headers['Location'] = url_for('comment.get_comment', id=com.id)  # HTTP协议要求201响应包含一个值为新资源URL的Location头部
@@ -40,9 +49,17 @@ def get_comment(id):
 @token_auth.login_required
 def delete_com(id):
     com = comment.query.get_or_404(id)
-    com.post.author.add_new_notification('new_received_comment', com.post.author.new_received_comment())  # 更新未读通知数目
+    users = set()  # 该评论添加后需要通知的用户
+    users.add(com.post.author)  # 将文章作者添加进集合中，
+    if comment.parent:  # 如果该评论有父评论
+        ancestors_authors = {c.author for c in comment.get_ancestors()}  # 得到所有发表祖先评论的用户
+        users = users | ancestors_authors  # 得到并集
     db.session.delete(com)
     db.session.commit()
+    for u in users:
+        u.add_new_notification('new_received_comment',
+                           u.new_received_comment())
+    db.session.commit()  # 更新数据库，写入新通知
     return 'Success'
 
 
