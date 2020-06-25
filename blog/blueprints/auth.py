@@ -40,7 +40,7 @@ def login():
         login_user(que)
         return g.current_user.generate_token(86400)                         # token有效期设置为1天
     else:
-        return False
+        return 'false'
 
 
 @auth_bp.route('/getToken', methods=['GET'])

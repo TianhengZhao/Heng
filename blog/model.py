@@ -170,7 +170,7 @@ class user(paginatededAPI, db.Model, UserMixin):
             data = s.loads(token)  # 返回从playload中取出的数据
         except (SignatureExpired, BadSignature):  # 签名过期或签名不匹配
             return None
-        db.session.commit()                     # 为什么要commit？？？
+        db.session.commit()
         return user.query.get(data['id'])
 
 

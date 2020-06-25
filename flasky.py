@@ -5,7 +5,16 @@ import os
 import sys
 
 
-app = create_app(None)
+app = create_app(None)          #  development
+
+# production
+"""
+app = create_app('production')
+if __name__ == '__main__':
+    from werkzeug.contrib.fixers import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app)
+    app.run()
+"""
 
 # 创建 coverage 实例
 COV = None
@@ -30,7 +39,7 @@ def test(coverage):
     if coverage and not os.environ.get('FLASK_COVERAGE'):
         import subprocess
         os.environ['FLASK_COVERAGE'] = '1'  # 需要字符串的值
-        #sys.exit(subprocess.call(sys.argv))                                    失败，出bug
+        # sys.exit(subprocess.call(sys.argv))                                    失败，出bug
         os.execvp(sys.executable, [sys.executable]+sys.argv)                     # 成功
 
     import unittest

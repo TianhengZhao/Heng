@@ -38,8 +38,8 @@ class TestingConfig(BaseConfig):     # 不太懂test什么意思
 
 
 class ProductionConfig(BaseConfig):
-    SQLALCHEMY_DATABASE_URI = '{}+{}://{}:{}@{}/{}'.format('mysql', 'pymysql', 'root','root', '127.0.0.1',
-                                                                         'Heng')
+    SQLALCHEMY_DATABASE_URI = '{}+{}://{}:{}@{}/{}'.format('mysql', 'pymysql', 'ubuntu','1', 'localhost:3306',
+                                                                         'hengblog')
 
 
 Config = {

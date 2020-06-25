@@ -51,8 +51,8 @@ def delete_com(id):
     com = comment.query.get_or_404(id)
     users = set()  # 该评论添加后需要通知的用户
     users.add(com.post.author)  # 将文章作者添加进集合中，
-    if comment.parent:  # 如果该评论有父评论
-        ancestors_authors = {c.author for c in comment.get_ancestors()}  # 得到所有发表祖先评论的用户
+    if com.parent:  # 如果该评论有父评论
+        ancestors_authors = {c.author for c in com.get_ancestors()}  # 得到所有发表祖先评论的用户
         users = users | ancestors_authors  # 得到并集
     db.session.delete(com)
     db.session.commit()
