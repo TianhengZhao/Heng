@@ -1,18 +1,20 @@
 """
-    author: Tianheng Zhao
     应用的配置文件
 """
 import os
 
-basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__))) # 返回.py文件的绝对路径
+basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))  # 返回.py文件的绝对路径
+
 
 class Operations:
     CONFIRM = 'confirm'
     RESET_PASSWORD = 'reset-password'
     CHANGE_EMAIL = 'change-email'
 
+
 class BaseConfig:
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'hard to guess string'   # 待修改
+    """设置基类"""
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'hard to guess string'
     MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.qq.com')
     MAIL_PORT = int(os.environ.get('MAIL_PORT', '587'))
     MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'true')
@@ -25,21 +27,21 @@ class BaseConfig:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 
-class DevelopmentConfig(BaseConfig):   # 继承Config类
-    SQLALCHEMY_DATABASE_URI = '{}+{}://{}:{}@{}/{}'.format('mysql', 'pymysql', 'root','root', 'localhost',
-                                                                         'HengDev')
+class DevelopmentConfig(BaseConfig):
+    SQLALCHEMY_DATABASE_URI = ('{}+{}://{}:{}@{}/{}'.format('mysql', 'pymysql',
+                                                            'root', 'root', 'localhost', 'HengDev'))
 
 
-class TestingConfig(BaseConfig):     # 不太懂test什么意思
+class TestingConfig(BaseConfig):
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = '{}+{}://{}:{}@{}/{}'.format('mysql', 'pymysql', 'root','root', '127.0.0.1',
-                                                                         'HengTest')
+    SQLALCHEMY_DATABASE_URI = '{}+{}://{}:{}@{}/{}'.format(
+        'mysql', 'pymysql', 'root', 'root', '127.0.0.1', 'HengTest')
     WTF_CSRF_ENABLED = False
 
 
 class ProductionConfig(BaseConfig):
-    SQLALCHEMY_DATABASE_URI = '{}+{}://{}:{}@{}/{}'.format('mysql', 'pymysql', 'ubuntu','1', 'localhost:3306',
-                                                                         'hengblog')
+    SQLALCHEMY_DATABASE_URI = ('{}+{}://{}:{}@{}/{}'.format(
+        'mysql', 'pymysql', 'ubuntu', '1', 'localhost:3306', 'hengblog'))
 
 
 Config = {

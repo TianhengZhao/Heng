@@ -1,20 +1,22 @@
-import os
-from blog import create_app
-import click
+"""
+    定义Flask应用实例
+"""
 import os
 import sys
+import click
+from blog import create_app
 
 
-app = create_app(None)          #  development
+app = create_app(None)          # development
 
 # production
-"""
-app = create_app('production')
-if __name__ == '__main__':
-    from werkzeug.contrib.fixers import ProxyFix
-    app.wsgi_app = ProxyFix(app.wsgi_app)
-    app.run()
-"""
+
+# app = create_app('production')
+# if __name__ == '__main__':
+#     from werkzeug.contrib.fixers import ProxyFix
+#     app.wsgi_app = ProxyFix(app.wsgi_app)
+#     app.run()
+
 
 # 创建 coverage 实例
 COV = None
@@ -25,19 +27,12 @@ if os.environ.get('FLASK_COVERAGE'):
 
 
 @app.cli.command()
-def test():
-    import unittest
-    tests = unittest.TestLoader().discover('blog/tests')  # 找到 tests 目录
-    unittest.TextTestRunner(verbosity=2).run(tests)
-
-
-@app.cli.command()
 @click.option('--coverage/--no-coverage', default=False, help='Run tests under code coverage.')
 def test(coverage):
-    '''Run the unit tests.'''
+    """Run the unit tests."""
     # 如果执行 flask test --coverage，但是FLASK_COVERAGE环境变量不存在时，给它配置上
     if coverage and not os.environ.get('FLASK_COVERAGE'):
-        import subprocess
+        # import subprocess
         os.environ['FLASK_COVERAGE'] = '1'  # 需要字符串的值
         # sys.exit(subprocess.call(sys.argv))                                    失败，出bug
         os.execvp(sys.executable, [sys.executable]+sys.argv)                     # 成功
