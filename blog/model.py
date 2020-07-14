@@ -1,24 +1,33 @@
 """
-  author: Tianheng Zhao
+    定义数据库模型
 """
 import json
-from flask_login import UserMixin
 from hashlib import md5
-from werkzeug.security import check_password_hash
-from flask import url_for
 from datetime import datetime
 from time import time
-from .extensions import db
-from flask import current_app
+from flask_login import UserMixin
+from werkzeug.security import check_password_hash
+from flask import current_app, url_for
 from itsdangerous import BadSignature, SignatureExpired
-from itsdangerous import TimedJSONWebSignatureSerializer as Serializer   # 从itsdangerous（提供签名辅助类）导入JWS令牌；
+from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
+# 从itsdangerous（提供签名辅助类）导入JWS令牌
 from werkzeug.security import generate_password_hash
+from .extensions import db
 
 
-class paginatededAPI(object):
+class PaginatedAPI(object):
+    """对数据进行分页的接口"""
     @staticmethod
-    def pagnitede_dict(query, page, per_page, endpoint, **kwargs):
-        info = query.paginate(page, per_page)              # paginate实现分页功能
+    def paginated_dict(query, page, per_page, endpoint, **kwargs):
+        """
+        分页后得到的数据信息字典
+        :param query: 数据库查询语句
+        :param page: 总页数
+        :param per_page: 每页条目数
+        :param endpoint: 换页时的函数端点
+        :return: 分页后的数据（字典形式）
+        """
+        info = query.paginate(page, per_page)              # paginate()实现分页功能
         data = {
             'items': [item.to_dict() for item in info.items],    # 页中每一项的内容
             '_meta': {
@@ -29,8 +38,10 @@ class paginatededAPI(object):
             },
             '_links': {
                 'self': url_for(endpoint, page=page, per_page=per_page, **kwargs),
-                'next': url_for(endpoint, page=page + 1, per_page=per_page, **kwargs) if info.has_next else None,
-                'prev': url_for(endpoint, page=page - 1, per_page=per_page, **kwargs) if info.has_prev else None
+                'next': (url_for(endpoint, page=page + 1, per_page=per_page, **kwargs)
+                         if info.has_next else None),
+                'prev': (url_for(endpoint, page=page - 1, per_page=per_page, **kwargs)
+                         if info.has_prev else None)
             }
         }
         return data
@@ -45,8 +56,8 @@ followers = db.Table(                                 # 关联表
 )
 
 
-# 用户模型
-class user(paginatededAPI, db.Model, UserMixin):
+class User(PaginatedAPI, db.Model, UserMixin):
+    """用户模型"""
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(20), unique=True, index=True)  # 建立索引
     email = db.Column(db.String(254), unique=True, index=True)    # 建立索引
@@ -54,19 +65,30 @@ class user(paginatededAPI, db.Model, UserMixin):
     about_me = db.Column(db.String(256))
     reg_since = db.Column(db.DateTime(), default=datetime.utcnow)
     sex = db.Column(db.String(5))
-    last_received_comments_read_time = db.Column(db.DateTime)          # 上次查看新评论时间
-    last_received_followers_read_time = db.Column(db.DateTime)         # 上次查看新粉丝时间
-    last_received_likes_read_time = db.Column(db.DateTime)             # 上次查看新的赞时间
-    last_followed_posts_read_time = db.Column(db.DateTime)             # 上次查看关注者文章时间
-    posts = db.relationship('article', backref='author', lazy='dynamic', cascade='all,delete-orphan')     # user和post建立双向关系backref，user为‘一’，posts为‘多’
-    comments = db.relationship('comment', backref='author', lazy='dynamic', cascade='all, delete-orphan')  #user为‘一’，comments为‘多’
-    notifications = db.relationship('notification', backref='author', lazy='dynamic', cascade='all, delete-orphan')
-    message_send = db.relationship('message', backref='sender', lazy='dynamic', cascade='all, delete-orphan',
-                                   foreign_keys='message.sender_id')
-    message_recipient = db.relationship('message', backref='recipient', lazy='dynamic', cascade='all, delete-orphan',
-                                    foreign_keys='message.recipient_id')
+    # 上次查看新评论时间
+    last_received_comments_read_time = db.Column(db.DateTime)
+    # 上次查看新粉丝时间
+    last_received_followers_read_time = db.Column(db.DateTime)
+    # 上次查看新的赞时间
+    last_received_likes_read_time = db.Column(db.DateTime)
+    # 上次查看关注者文章时间
+    last_followed_posts_read_time = db.Column(db.DateTime)
+    # User和post建立双向关系backref，User为‘一’，posts为‘多’
+    posts = (db.relationship('Article', backref='author',
+                             lazy='dynamic', cascade='all,delete-orphan'))
+    # User为‘一’，comments为‘多’
+    comments = (db.relationship('Comment', backref='author',
+                                lazy='dynamic', cascade='all, delete-orphan'))
+    notifications = (db.relationship('Notification', backref='author',
+                                     lazy='dynamic', cascade='all, delete-orphan'))
+    # message_send = (db.relationship('Message', backref='sender',
+                                    # lazy='dynamic', cascade='all, delete-orphan',
+                                    # foreign_keys='message.sender_id'))
+    # message_recipient = (db.relationship('Message', backref='recipient',
+                                         # lazy='dynamic', cascade='all, delete-orphan',
+                                         # foreign_keys='message.recipient_id'))
     followeds = db.relationship(
-        'user',                            # 关联表名，自引用
+        'User',                            # 关联表名，自引用
         secondary=followers,             # 指明用于该关系的关联表
         primaryjoin=(followers.c.follower_id == id),
         secondaryjoin=(followers.c.followed_id == id),
@@ -75,70 +97,81 @@ class user(paginatededAPI, db.Model, UserMixin):
     )
 
     def is_following(self, obj):
-        return self.followeds.filter(followers.c.followed_id == obj.id).count() > 0     # 判断当前user是否关注obj
+        """判断当前User是否关注obj"""
+        return self.followeds.filter(followers.c.followed_id == obj.id).count() > 0
 
     def follow(self, obj):
-        if not self.is_following(obj):                # 如果当前user未关注过该obj
+        """关注用户"""
+        if not self.is_following(obj):                # 如果当前User未关注过该obj
             self.followeds.append(obj)                      # 在关联表中添加self和该obj
 
     def unfollow(self, obj):
-        if self.is_following(obj):                    # 如果当前user关注了该obj
+        """取关用户"""
+        if self.is_following(obj):                    # 如果当前User关注了该obj
             self.followeds.remove(obj)                      # 在关联表中删除self对应的obj
 
     def followed_posts(self):
-        followed = article.query.join(
-            followers, (followers.c.followed_id == article.author_id)    # 将关联表和文章表进行关联
+        """获得当前用户所有关注用户的文章"""
+        followed = Article.query.join(
+            followers, (followers.c.followed_id == Article.author_id)    # 将关联表和文章表进行关联
         ).filter(followers.c.follower_id == self.id)                     # 找出当前用户所关注用户的文章
-        return followed.order_by(article.timestamp.desc())
+        return followed.order_by(Article.timestamp.desc())
 
     def set_password(self, password):
+        """将密码加密，保存为哈希值"""
         self.password_hash = generate_password_hash(password, method='pbkdf2:sha256', salt_length=8)
 
     def validate_password(self, password):
+        """验证密码与保存的哈希值是否匹配"""
         return check_password_hash(self.password_hash, password)  # 返回值为True表示密码正确
 
     def avatar(self, size):
-        digest = md5(self.email.lower().encode('utf-8')).hexdigest()  # 以utf-8格式编码邮箱，然后得到MD5哈希值，以16进制表示
+        """获得头像地址"""
+        # 以utf-8格式编码邮箱，然后得到MD5哈希值，以16进制表示
+        digest = md5(self.email.lower().encode('utf-8')).hexdigest()
         return 'https://www.gravatar.com/avatar/{}?d=identicon&s={}'.format(digest, size)
 
-    # 用户获得的新评论的个数
     def new_received_comment(self):
+        """获得用户所有新评论的个数"""
         last_read_time = self.last_received_comments_read_time or datetime(1900, 1, 1)
         all_posts = [post.id for post in self.posts.all()]
-        post_comments = set(comment.query.filter(comment.article_id.in_(all_posts), comment.author != self).all())  # 我发表的所有文章的所有评论
+        # 我发表的所有文章的所有评论
+        post_comments = set(Comment.query.filter(Comment.article_id.in_(all_posts), Comment.author != self).all())
         des_comments = set()
         for c in self.comments:
             des_comments = des_comments | c.get_descendants()
-        des_comments = des_comments - set(self.comments.all())  # 除去子孙中，用户自己发的(因为是多级评论，用户可能还会在子孙中盖楼)，自己回复的不用通知
+        # 除去子孙中，用户自己发的(因为是多级评论，用户可能还会在子孙中盖楼)，自己回复的不用通知
+        des_comments = des_comments - set(self.comments.all())
         # 用户收到的总评论集合为 q1 与 q2 的并集
         recived_comments = post_comments | des_comments
         # 最后，再过滤掉 last_read_time 之前的评论
         return len([c for c in recived_comments if c.timestamp > last_read_time])
 
-    # 用户新粉丝的个数
     def new_received_followers(self):
+        """获得用户新粉丝的个数"""
         last_read_time = self.last_received_comments_read_time or datetime(1900, 1, 1)
         new_followers = self.followers.filter(followers.c.timestamp > last_read_time).count()
         return new_followers
 
-    # 用户新赞的个数
     def new_received_likes(self):
+        """获得用户新赞的个数"""
         last_read_time = self.last_received_likes_read_time or datetime(1900, 1, 1)
         all_comments = self.comments.join(comments_likes)
         new_likes_count = 0
         for c in all_comments:
             for u in c.likers:
-                res = db.engine.execute('select * from comments_likes where user_id={} and comment_id={}'.format(u.id, c.id))
+                res = db.engine.execute('select * from comments_likes where user_id={} and comment_id={}'.
+                                        format(u.id, c.id))
                 timestamp = list(res)[0][2]
                 if timestamp > last_read_time:
                     new_likes_count += 1
         return new_likes_count
 
-    # 给用户添加新的通知
     def add_new_notification(self, name, data):
+        """给用户添加新的通知"""
         self.notifications.filter_by(name=name).delete()
         # 为用户添加通知，写入数据库
-        n = notification(name=name, payload_json=json.dumps(data), user_id=self.id)
+        n = Notification(name=name, payload_json=json.dumps(data), user_id=self.id)
         db.session.add(n)
         return n
 
@@ -157,7 +190,8 @@ class user(paginatededAPI, db.Model, UserMixin):
         }
         return data
 
-    def generate_token(self, expire_in=None, **kwargs):  # 产生令牌
+    def generate_token(self, expire_in=None, **kwargs):
+        """产生令牌"""
         s = Serializer(current_app.config['SECRET_KEY'], expire_in)  # 序列化对象
         data = {'id': self.id, 'name': self.username}
         data.update(**kwargs)
@@ -165,17 +199,18 @@ class user(paginatededAPI, db.Model, UserMixin):
 
     @staticmethod                                           # 静态方法用来进行验证
     def validate_token(token):
+        """验证令牌"""
         s = Serializer(current_app.config['SECRET_KEY'])  # 和创建令牌一样的密钥建立序列化对象
         try:
             data = s.loads(token)  # 返回从playload中取出的数据
         except (SignatureExpired, BadSignature):  # 签名过期或签名不匹配
             return None
         db.session.commit()
-        return user.query.get(data['id'])
+        return User.query.get(data['id'])
 
 
-# 文章模型
-class article(paginatededAPI, db.Model):
+class Article(PaginatedAPI, db.Model):
+    """文章模型"""
     __tablename__ = 'article'
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255))
@@ -183,8 +218,10 @@ class article(paginatededAPI, db.Model):
     body = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     views = db.Column(db.Integer, default=0)
-    author_id = db.Column(db.Integer, db.ForeignKey('user.id'))                       # 将author_id设为外键
-    comments = db.relationship('comment', backref='post', lazy='dynamic', cascade='all, delete-orphan')  # user为‘一’，comments为‘多’
+    # 将author_id设为外键
+    author_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    # User为‘一’，comments为‘多’
+    comments = db.relationship('Comment', backref='post', lazy='dynamic', cascade='all, delete-orphan')
 
     def __repr__(self):
         return '<Post {}>'.format(self.title)
@@ -219,28 +256,34 @@ comments_likes = db.Table(                         # 建立关联表
 )
 
 
-# 评论模型
-class comment(paginatededAPI, db.Model):
+class Comment(PaginatedAPI, db.Model):
+    """评论模型"""
     id = db.Column(db.Integer, primary_key=True)
     body = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     mark_read = db.Column(db.Boolean, default=False)                    # 评论是否已读标志位
     disabled = db.Column(db.Boolean, default=False)                       # 屏蔽评论
-    author_id = db.Column(db.Integer, db.ForeignKey('user.id'))           # 将user.id设置为外键，和user形成一对多关系
-    article_id = db.Column(db.Integer, db.ForeignKey('article.id'), index=True)       # 将article.id设置为外键，和article形成一对多关系
-    likers = db.relationship(                                           # 评论点赞数，comment与user建立多对多关系
-        'user',
+    # 将User.id设置为外键，和User形成一对多关系
+    author_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    # 将article.id设置为外键，和article形成一对多关系
+    article_id = db.Column(db.Integer, db.ForeignKey('article.id'), index=True)
+    # 评论点赞数，comment与User建立多对多关系
+    likers = db.relationship(
+        'User',
         secondary=comments_likes,
-        backref=db.backref('liked_comments',  lazy='dynamic'))
-
-    parent_id = db.Column(db.Integer, db.ForeignKey('comment.id', ondelete='CASCADE'))  # 自引用，将父评论的id设为外键
-    # 级联删除定义在多的一侧，parent是“一”，children是“多”；用remote_side参数指定‘一’的一方，值为一个Colmun对象（必须唯一）
-    parent = db.relationship('comment', backref=db.backref('children', cascade='all, delete-orphan'), remote_side=[id])
+        backref=db.backref('liked_comments', lazy='dynamic'))
+    # 自引用，将父评论的id设为外键
+    parent_id = db.Column(db.Integer, db.ForeignKey('comment.id', ondelete='CASCADE'))
+    # 级联删除定义在多的一侧，parent是“一”，children是“多”；
+    # 用remote_side参数指定‘一’的一方，值为一个Colmun对象（必须唯一）
+    parent = db.relationship('Comment', backref=db.backref('children', cascade='all, delete-orphan'),
+                             remote_side=[id])
 
     def __repr__(self):
         return '<Comment {}>'.format(self.id)
 
     def get_ancestors(self):
+        """获得评论所有祖先评论"""
         data = []
 
         def ancestors(icomment):
@@ -250,7 +293,8 @@ class comment(paginatededAPI, db.Model):
         ancestors(self)
         return data
 
-    def get_descendants(self):           # 获得一级评论的所有子孙评论
+    def get_descendants(self):
+        """获得评论的所有子孙评论"""
         data = set()
 
         def descendants(icomment):
@@ -262,18 +306,22 @@ class comment(paginatededAPI, db.Model):
         descendants(self)
         return data
 
-    def is_liked_by(self, this_user):                    # 用户是否赞过该评论
+    def is_liked_by(self, this_user):
+        """判断用户是否赞过该评论"""
         return this_user in self.likers
 
-    def like(self, this_user):                           # 点赞
+    def like(self, this_user):
+        """点赞"""
         if not self.is_liked_by(this_user):
             return self.likers.append(this_user)
 
-    def cancle_like(self, this_user):                   # 取消点赞
+    def cancle_like(self, this_user):
+        """取消点赞"""
         if self.is_liked_by(this_user):
             return self.likers.remove(this_user)
 
     def likes_count(self):
+        """获得该评论点赞个数"""
         return len(self.likers)
 
     def from_dict(self, data):
@@ -300,8 +348,9 @@ class comment(paginatededAPI, db.Model):
         return data
 
 
-class notification(db.Model):
-    id = db.Column(db.Integer, primary_key = True)
+class Notification(db.Model):
+    """评论模型"""
+    id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), index=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     timestamp = db.Column(db.Float, index=True, default=time)
@@ -337,7 +386,7 @@ class notification(db.Model):
                 setattr(self, field, data[field])
 
 
-class message(paginatededAPI, db.Model):
+class Message(PaginatedAPI, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     body = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)

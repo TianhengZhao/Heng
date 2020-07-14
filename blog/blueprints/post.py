@@ -2,7 +2,7 @@ from .auth import token_auth
 from flask import Blueprint, request, g, jsonify, url_for
 from ..extensions import db
 from werkzeug.http import HTTP_STATUS_CODES
-from ..model import article, comment
+from ..model import Article, Comment
 
 post_bp = Blueprint('post', __name__)
 
@@ -12,7 +12,7 @@ post_bp = Blueprint('post', __name__)
 @token_auth.login_required
 def add_post():
     data = request.get_json()
-    posts = article()
+    posts = Article()
     posts.from_dict(data)
     posts.author = g.current_user
     db.session.add(posts)
@@ -28,14 +28,14 @@ def add_post():
 def get_posts():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 3, type=int)
-    pagi = article.pagnitede_dict(article.query.order_by(article.timestamp.desc()), page, per_page, 'post.get_posts')
+    pagi = Article.paginated_dict(Article.query.order_by(Article.timestamp.desc()), page, per_page, 'post.get_posts')
     return jsonify(pagi)
 
 
 # 根据文章id获得对应文章
 @post_bp.route('/getPost/<id>', methods=['GET'])
 def get_post(id):
-    art = article.query.get_or_404(id)
+    art = Article.query.get_or_404(id)
     art.views += 1
     db.session.add(art)
     db.session.commit()
@@ -46,7 +46,7 @@ def get_post(id):
 @post_bp.route('/getPost/<id>', methods=['DELETE'])
 @token_auth.login_required
 def delete_post(id):
-    art = article.query.get_or_404(id)
+    art = Article.query.get_or_404(id)
     db.session.delete(art)
     db.session.commit()
     return 'Success'
@@ -57,7 +57,7 @@ def delete_post(id):
 def get_ones_posts(id):
     page = request.args.get('page', 1, type=int)
     per_page = 5
-    pagi = article.pagnitede_dict(article.query.filter_by(author_id = id).order_by(article.timestamp.desc()), page, per_page, 'post.get_ones_posts', id=id)
+    pagi = Article.paginated_dict(Article.query.filter_by(author_id = id).order_by(Article.timestamp.desc()), page, per_page, 'post.get_ones_posts', id=id)
     return jsonify(pagi)
 
 
@@ -66,10 +66,10 @@ def get_ones_posts(id):
 def get_comments(id):
     page = request.args.get('page', 1, type=int)
     per_page = 5
-    post = article.query.get_or_404(id)
-    data = comment.pagnitede_dict(post.comments.filter(comment.parent == None).order_by(comment.timestamp.desc()),  page, per_page, 'post.get_comments', id=id)  # 获得一级评论，按时间降序
+    post = Article.query.get_or_404(id)
+    data = Comment.paginated_dict(post.comments.filter(Comment.parent == None).order_by(Comment.timestamp.desc()),  page, per_page, 'post.get_comments', id=id)  # 获得一级评论，按时间降序
     for item in data['items']:                              # 对于page中的每一项
-        com = comment.query.get(item['id'])
+        com = Comment.query.get(item['id'])
         descendants = [child.to_dict() for child in com.get_descendants()]    # 得到该评论的所有子孙评论
         from operator import itemgetter
         item['descendants'] = sorted(descendants, key=itemgetter('timestamp'))  # 按 timestamp 排序一个字典列表，按时间升序

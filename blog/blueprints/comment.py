@@ -1,7 +1,7 @@
 from .auth import token_auth
 from flask import Blueprint, request, g, jsonify, url_for
 from ..extensions import db
-from ..model import comment, article
+from ..model import Comment, Article
 
 comment_bp = Blueprint('comment', __name__)
 
@@ -11,8 +11,8 @@ comment_bp = Blueprint('comment', __name__)
 @token_auth.login_required
 def add_comment():
     data = request.get_json()
-    post = article.query.get_or_404(data['article_id'])
-    com = comment()
+    post = Article.query.get_or_404(data['article_id'])
+    com = Comment()
     new_body = data['body'].strip()
     com.body = new_body.replace('\n', '')
     com.author = g.current_user
@@ -23,7 +23,7 @@ def add_comment():
     db.session.commit()
     users = set()      # 该评论添加后需要通知的用户
     users.add(com.post.author)  # 将文章作者添加进集合中，
-    if comment.parent:           # 如果该评论有父评论
+    if Comment.parent:           # 如果该评论有父评论
         ancestors_authors = {c.author for c in com.get_ancestors()}       # 得到所有发表祖先评论的用户
         users = users | ancestors_authors     # 得到并集
     # 给各用户发送新评论通知
@@ -40,7 +40,7 @@ def add_comment():
 # 获得comment表id对应的单个评论
 @comment_bp.route('/comments/<id>', methods=['GET'])
 def get_comment(id):
-    com = comment.query.get_or_404(id)
+    com = Comment.query.get_or_404(id)
     return jsonify(com.to_dict())
 
 
@@ -48,7 +48,7 @@ def get_comment(id):
 @comment_bp.route('/comments/<id>', methods=['DELETE'])
 @token_auth.login_required
 def delete_com(id):
-    com = comment.query.get_or_404(id)
+    com = Comment.query.get_or_404(id)
     users = set()  # 该评论添加后需要通知的用户
     users.add(com.post.author)  # 将文章作者添加进集合中，
     if com.parent:  # 如果该评论有父评论
@@ -67,7 +67,7 @@ def delete_com(id):
 @comment_bp.route('/comments/<id>/like', methods=['GET'])
 @token_auth.login_required
 def like_comment(id):
-    com = comment.query.get_or_404(id)
+    com = Comment.query.get_or_404(id)
     com.like(g.current_user)
     com.author.add_new_notification('new_received_likes', com.author.new_received_likes())
     db.session.add(com)
@@ -79,7 +79,7 @@ def like_comment(id):
 @comment_bp.route('/comments/<id>/unlike', methods=['GET'])
 @token_auth.login_required
 def unlike_comment(id):
-    com = comment.query.get_or_404(id)
+    com = Comment.query.get_or_404(id)
     com.cancle_like(g.current_user)
     com.author.add_new_notification('new_received_likes', com.author.new_received_likes())
     db.session.add(com)
@@ -92,7 +92,7 @@ def unlike_comment(id):
 @token_auth.login_required
 def disabled_com(id):
     data = request.get_json()
-    com = comment.query.get_or_404(id)
+    com = Comment.query.get_or_404(id)
     com.disabled = data['disableOrEnable']
     db.session.add(com)
     db.session.commit()

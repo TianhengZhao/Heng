@@ -6,7 +6,7 @@ from flask import Flask
 from flask_cors import CORS
 from .config import Config
 from .extensions import bootstrap, db, login_manager, mail, avatars, migrate
-from .model import user
+from .model import User
 from .blueprints.auth import auth_bp
 from .blueprints.user import user_bp
 from .blueprints.post import post_bp

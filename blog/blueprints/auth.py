@@ -3,7 +3,7 @@ from flask import request, Blueprint, g, jsonify, url_for
 from flask_httpauth import HTTPBasicAuth, HTTPTokenAuth
 from ..extensions import db
 from werkzeug.security import generate_password_hash
-from ..model import user  # model引用必须在db和login_manager之后，以免引起循环引用
+from ..model import User  # model引用必须在db和login_manager之后，以免引起循环引用
 
 auth_bp = Blueprint('auth', __name__)
 basic_auth = HTTPBasicAuth()
@@ -19,7 +19,7 @@ def signinData():
         if validate_email(data['email']) is False:  # 邮箱不唯一
             return 'Wrong Email'
         else:
-            user0 = user(username=data['username'],email=data['email'])
+            user0 = User(username=data['username'],email=data['email'])
             user0.set_password(data['password'])
             db.session.add(user0)
             db.session.commit()
@@ -34,7 +34,7 @@ def signinData():
 @auth_bp.route('/loginData',methods=['GET', 'POST'])
 def login():
     data = request.get_json()
-    que = user.query.filter_by(username=data['username']).first()
+    que = User.query.filter_by(username=data['username']).first()
     if que is not None and que.validate_password(data['password']):                      # 用户是否存在
         g.current_user = que                  # 将该用户赋给 g.current_user
         login_user(que)
@@ -52,17 +52,17 @@ def get_token():
 
 @token_auth.verify_token
 def varify_token(token):
-    g.current_user = user.validate_token(token) if token else None
+    g.current_user = User.validate_token(token) if token else None
     return g.current_user is not None
 
 
 def validate_email(data):               # 检查数据库中是否有相同邮箱
-   if user.query.filter_by(email=data).first():
+   if User.query.filter_by(email=data).first():
        return False
 
 
 def validate_name(data):               # 检查数据库中是否有相同用户名
-   if user.query.filter_by(username=data).first():
+   if User.query.filter_by(username=data).first():
        return False
 
 
